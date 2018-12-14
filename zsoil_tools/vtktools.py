@@ -11,7 +11,6 @@ import numpy as np
 import math
 import vtk
 
-#lalala
 
 res2import = {'NODAL':['DISP_TRA','DISP_ROT','PPRESS','PRES_HEAD'],
               'BEAMS':['FORCE','MOMENT'],
