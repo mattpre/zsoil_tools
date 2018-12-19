@@ -266,6 +266,7 @@ class zsoil_results:
         self.nShells = 0
         self.nTrusses = 0
         self.nPiles = 0
+        self.nNodalLinks = 0
         self.num_volumics = []
         self.num_shells = []
         self.num_beams = []
@@ -283,6 +284,9 @@ class zsoil_results:
         self.piles = []
         self.nails = []
         self.anchors = []
+
+        self.lists = []
+        self.nodallinks = []
 
         self.logfile = 0
         
@@ -525,41 +529,46 @@ class zsoil_results:
                     
             elif 'UNITS' in line:
                 pass
+            elif 'LINK' in line:
+                self.nNodalLinks = int(line.split()[1])
+                for kl in range(self.nNodalLinks):
+                    v = file.readline().split()
+                    self.nodallinks.append((int(v[0]),int(v[1])))
             elif 'LIST' in line:
                 nList = int(line.split()[1])
                 labels = []
                 for kl in range(nList):
                     line = file.readline()
                     nVal = int(line.split()[2])
-                    rType = int(line.split()[3])
-                    label = line[37:]
+                    label = line[37:-1]
                     labels.append(label)
-                    if rType==1:
-                        line = file.readline()
-                        if 'P' in label and 'N' in label and not '_' in label:
-                            kp = int(label.split()[0][1:])-1
-                            if len(self.piles)==kp:
-                                aPile = pile()
-                                self.piles.append(aPile)
-                            else:
-                                aPile = self.piles[kp]
-                            kb = int(label.split()[1][1:])
-                            eles = [int(v) for v in line.split()]
-                            if len(self.piles[kp].volumics)==0:
-                                self.piles[kp].volumics.append([eles[0]])
-                            else:
-                                if not eles[0]==self.piles[kp].volumics[-1][-1]:
-                                    self.piles[kp].volumics[-1].append(eles[0])
-                                self.piles[kp].volumics.append([eles[-1]])
-##                            self.piles[kp].volumics.append([int(v) for v in line.split()])
-                        elif 'DRM' in label:
-                            for kv in range(int(numpy.ceil(nVal/10.))-1):
-                                line = file.readline()
-                    elif rType==2:
-                        for kv in range(numpy.ceil(nVal/10.)):
+                    # rtype defines how to read the values
+                    vals = []
+                    if int(line.split()[3])==1:
+                        for kv in range(int(numpy.ceil(nVal/10.))):
                             line = file.readline()
-                    else:
-                        print 'error in reading dat-file: LIST'
+                            for v in line.split():
+                                vals.append(int(v))
+                    elif int(line.split()[3])==2:
+                        for kv in range(nVal):
+                            v = file.readline().split()
+                            vals.append((int(v[0]),int(v[1]),int(v[2])))
+                    self.lists.append((vals,label))
+                    if 'P' in label and 'N' in label and not '_' in label:
+                        kp = int(label.split()[0][1:])-1
+                        if len(self.piles)==kp:
+                            aPile = pile()
+                            self.piles.append(aPile)
+                        else:
+                            aPile = self.piles[kp]
+                        kb = int(label.split()[1][1:])
+                        eles = vals
+                        if len(self.piles[kp].volumics)==0:
+                            self.piles[kp].volumics.append([eles[0]])
+                        else:
+                            if not eles[0]==self.piles[kp].volumics[-1][-1]:
+                                self.piles[kp].volumics[-1].append(eles[0])
+                            self.piles[kp].volumics.append([eles[-1]])
                         
 
         file.close()
