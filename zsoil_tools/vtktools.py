@@ -479,7 +479,7 @@ def get_section_diagram(mesh,plane):
         
     return mbd
 
-def get_section(mesh,plane,origin=0,loc_syst=0,matlist=[],EFlist=[],LFlist=[],thlist=[]):
+def get_section(mesh,plane,origin=0,loc_syst=0,matlist=[],EFlist=[],LFlist=[],thlist=[],disp=False):
 
     if origin==0:
         origin = plane.GetOrigin()
@@ -511,6 +511,10 @@ def get_section(mesh,plane,origin=0,loc_syst=0,matlist=[],EFlist=[],LFlist=[],th
     N = cdata.GetArray('SMFORCE')
     T = cdata.GetArray('SQFORCE')
 
+    if disp:
+        pdata = lines.GetPointData()
+        D = pdata.GetArray('DISP_TRA')
+
     segments = []
     for kl in range(lines.GetNumberOfCells()):
         if len(matlist)==0 or mat.GetTuple1(kl) in matlist:
@@ -522,7 +526,11 @@ def get_section(mesh,plane,origin=0,loc_syst=0,matlist=[],EFlist=[],LFlist=[],th
                         id1 = line.GetPointId(1)
                         pt0 = points.GetPoint(id0)
                         pt1 = points.GetPoint(id1)
-                        vals = [M.GetTuple(kl),N.GetTuple(kl),T.GetTuple(kl)]
+                        if disp:
+                            vals = [M.GetTuple(kl),N.GetTuple(kl),T.GetTuple(kl),
+                                    [D.GetTuple(id0),D.GetTuple(id1)]]
+                        else:
+                            vals = [M.GetTuple(kl),N.GetTuple(kl),T.GetTuple(kl)]
                         segments.append([project_on_plane(base,origin,pt0),
                                          project_on_plane(base,origin,pt1),vals])
 ##                if id1>id0:
@@ -660,7 +668,7 @@ def contourf(val,crd,output,loc_syst,orig,ax,levels=0):
             levels = np.linspace(min(val),max(val),10)
     except:
         pass
-    CS = ax.contourf(X,Z,V,levels)
+    CS = ax.contourf(X,Z,V,levels,extend='both')
 
     return CS
 
