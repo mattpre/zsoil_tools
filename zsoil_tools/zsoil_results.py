@@ -547,8 +547,10 @@ class zsoil_results:
                 pass
             elif 'LINK' in line:
                 self.nNodalLinks = int(line.split()[1])
-                for kl in range(self.nNodalLinks):
-                    v = file.readline().split()
+                for klink in range(self.nNodalLinks):
+                    line = lines[kl]
+                    kl += 1
+                    v = line.split()
                     self.nodallinks.append((int(v[0]),int(v[1])))
             elif 'LIST' in line:
                 nList = int(line.split()[1])
@@ -563,12 +565,15 @@ class zsoil_results:
                     vals = []
                     if int(line.split()[3])==1:
                         for kv in range(int(numpy.ceil(nVal/10.))):
-                            line = file.readline()
+                            line = lines[kl]
+                            kl += 1
                             for v in line.split():
                                 vals.append(int(v))
                     elif int(line.split()[3])==2:
                         for kv in range(nVal):
-                            v = file.readline().split()
+                            line = lines[kl]
+                            kl += 1
+                            v = linesplit()
                             vals.append((int(v[0]),int(v[1]),int(v[2])))
                     self.lists.append((vals,label))
                     if 'P' in label and 'N' in label and not '_' in label:
