@@ -11,7 +11,6 @@ import numpy as np
 import math
 import vtk
 
-
 res2import = {'NODAL':['DISP_TRA','DISP_ROT','PPRESS','PRES_HEAD'],
               'BEAMS':['FORCE','MOMENT'],
               'TRUSSES':['FORCE'],
@@ -58,51 +57,26 @@ def create_cell_data(mesh,eg,res_group,step_res,res_labels,nEle,
                 else:
                     lab = eg.res_labels[rt].lower()
                 arrays.append([anArr,lab,eg.ncomp[rt]])
-    if type(step_res)==list:
-        step0_res = step_res[0]
-        step1_res = step_res[1]
-        for ke in range(nEle):
-            ele = vtk_constructor()
-            ids = ele.GetPointIds()
-            inel = res_group.inel[ke]
-            for kk,kn in enumerate(inel):
-                ids.SetId(kk,kn-1)
-            cells.InsertNextCell(ele)
-            EF.InsertNextTuple1(res_group.EF[ke])
-            LF.InsertNextTuple1(res_group.LF[ke])
-            mat.InsertNextTuple1(res_group.mat[ke])
-            for anArr in arrays:
-                aRes0 = getattr(step0_res,anArr[1])
-                aRes1 = getattr(step1_res,anArr[1])
-                try:
-                    if anArr[2]==1:
-                        anArr[0].InsertNextTuple1(aRes1[ke]-aRes0[ke])
-                    else:
-                        anArr[0].InsertNextTuple([aRes1[kcomp][ke]-aRes0[kcomp][ke] for kcomp in range(len(aRes1))])
-                except:
-                    print anArr
-                    print('Results for %s have not been read for the requested step.'%(eg.type))
-    else:
-        for ke in range(nEle):
-            ele = vtk_constructor()
-            ids = ele.GetPointIds()
-            inel = res_group.inel[ke]
-            for kk,kn in enumerate(inel):
-                ids.SetId(kk,kn-1)
-            cells.InsertNextCell(ele)
-            EF.InsertNextTuple1(res_group.EF[ke])
-            LF.InsertNextTuple1(res_group.LF[ke])
-            mat.InsertNextTuple1(res_group.mat[ke])
-            for anArr in arrays:
-                aRes = getattr(step_res,anArr[1])
-                try:
-                    if anArr[2]==1:
-                        anArr[0].InsertNextTuple1(aRes[ke])
-                    else:
-                        anArr[0].InsertNextTuple([comp[ke] for comp in aRes])
-                except:
-                    print anArr
-                    print('Results for %s have not been read for the requested step.'%(eg.type))
+    for ke in range(nEle):
+        ele = vtk_constructor()
+        ids = ele.GetPointIds()
+        inel = res_group.inel[ke]
+        for kk,kn in enumerate(inel):
+            ids.SetId(kk,kn-1)
+        cells.InsertNextCell(ele)
+        EF.InsertNextTuple1(res_group.EF[ke])
+        LF.InsertNextTuple1(res_group.LF[ke])
+        mat.InsertNextTuple1(res_group.mat[ke])
+        for anArr in arrays:
+            aRes = getattr(step_res,anArr[1])
+            try:
+                if anArr[2]==1:
+                    anArr[0].InsertNextTuple1(aRes[ke])
+                else:
+                    anArr[0].InsertNextTuple([comp[ke] for comp in aRes])
+            except:
+                print anArr
+                print('Results for %s have not been read for the requested step.'%(eg.type))
     mesh.SetCells(vtk_cell_type,cells)
     cdata = mesh.GetCellData()
     cdata.AddArray(mat)
@@ -135,22 +109,14 @@ def create_point_data(mesh,nodal,step_nodal,res_labels,nNodes):
 
     for anArr in arrays:
 ##        print anArr
-        if type(step_nodal)==list:
-            aRes0 = getattr(step_nodal[0],anArr[1])
-            aRes1 = getattr(step_nodal[1],anArr[1])
-            if len(aRes1)>0:
-                for kn in range(nNodes):
-                    anArr[0].InsertNextTuple([aRes1[kcomp][kn]-aRes0[kcomp][kn] for kcomp in range(len(aRes1))])
-            pdata.AddArray(anArr[0])
-        else:
-            aRes = getattr(step_nodal,anArr[1])
-            if len(aRes)>0:
-                for kn in range(nNodes):
-    ##                if anArr[2]==1:
-    ##                    anArr[0].InsertNextTuple(aRes[kn])
-    ##                else:
-                    anArr[0].InsertNextTuple([comp[kn] for comp in aRes])
-            pdata.AddArray(anArr[0])
+        aRes = getattr(step_nodal,anArr[1])
+        if len(aRes)>0:
+            for kn in range(nNodes):
+##                if anArr[2]==1:
+##                    anArr[0].InsertNextTuple(aRes[kn])
+##                else:
+                anArr[0].InsertNextTuple([comp[kn] for comp in aRes])
+        pdata.AddArray(anArr[0])
 
     return pdata
 
@@ -202,7 +168,7 @@ def write_unstructured_grid(filename,mesh,cdata,nEle,EFs,time,verbose,
 
 def write_vtu(res,tsteps='all',verbose=True,
               beams=False,vol=False,shells=False,trusses=False,cnt=False,
-              disp=True,outline=False,cut=[],refstep=0):
+              disp=True,outline=False,cut=[]):
 
     dim = len(res.coords)
     points = vtk.vtkPoints()
@@ -233,20 +199,12 @@ def write_vtu(res,tsteps='all',verbose=True,
         step = res.steps[kt]
         if not verbose:
             print 'writing step %i'%(kt)
-        if refstep:
-            tstr = str(int(step.time)).rjust(3,'0')+'_'+str(int((step.time-int(step.time))*100)).rjust(2,'0')
-            tstr += '-'+str(int(refstep.time)).rjust(3,'0')+'_'+str(int((refstep.time-int(refstep.time))*100)).rjust(2,'0')
-        else:
-            tstr = str(int(step.time)).rjust(3,'0')+'_'+str(int((step.time-int(step.time))*100)).rjust(2,'0')
+        tstr = str(int(step.time)).rjust(3,'0')+'_'+str(int((step.time-int(step.time))*100)).rjust(2,'0')
 
         if res.nodalRead:
             nodal_res = res.nodal_res[0]
             res_labels = res2import['NODAL']
-            if refstep:
-                STEPS = [refstep.nodal,step.nodal]
-            else:
-                STEPS = step.nodal
-            pdata = create_point_data(mesh,nodal_res,STEPS,
+            pdata = create_point_data(mesh,nodal_res,step.nodal,
                                       res_labels,res.nNodes)
 
         if beams:
@@ -258,11 +216,7 @@ def write_vtu(res,tsteps='all',verbose=True,
             else:
                 res_labels = []
                 eg = None
-            if refstep:
-                STEPS = [refstep.beam,step.beam]
-            else:
-                STEPS = step.beam
-            cdata,cells = create_cell_data(mesh,eg,res.beam,STEPS,
+            cdata,cells = create_cell_data(mesh,eg,res.beam,step.beam,
                                            res_labels,res.nBeams,
                                            vtk.vtkLine,vtk.VTK_LINE,
                                            res.beamsRead)
@@ -282,12 +236,8 @@ def write_vtu(res,tsteps='all',verbose=True,
             else:
                 res_labels = []
                 eg = None
-            if refstep:
-                STEPS = [refstep.vol,step.vol]
-            else:
-                STEPS = step.vol
             if dim==3:
-                cdata,cells = create_cell_data(mesh,eg,res.vol,STEPS,
+                cdata,cells = create_cell_data(mesh,eg,res.vol,step.vol,
                                                res_labels,res.nVolumics,
                                                vtk.vtkHexahedron,vtk.VTK_HEXAHEDRON,
                                                res.volumicsRead)
@@ -314,11 +264,7 @@ def write_vtu(res,tsteps='all',verbose=True,
             else:
                 res_labels = []
                 eg = None
-            if refstep:
-                STEPS = [refstep.shell,step.shell]
-            else:
-                STEPS = step.shell
-            cdata,cells = create_cell_data(mesh,eg,res.shell,STEPS,
+            cdata,cells = create_cell_data(mesh,eg,res.shell,step.shell,
                                            res_labels,res.nShells,
                                            vtk.vtkQuad,vtk.VTK_QUAD,
                                            res.shellsRead)
@@ -338,11 +284,7 @@ def write_vtu(res,tsteps='all',verbose=True,
             else:
                 res_labels = []
                 eg = None
-            if refstep:
-                STEPS = [refstep.cnt,step.cnt]
-            else:
-                STEPS = step.cnt
-            cdata,cells = create_cell_data(mesh,eg,res.cnt,STEPS,
+            cdata,cells = create_cell_data(mesh,eg,res.cnt,step.cnt,
                                            res_labels,res.nContacts,
                                            vtk.vtkQuad,vtk.VTK_QUAD,
                                            res.contactsRead)
@@ -362,11 +304,7 @@ def write_vtu(res,tsteps='all',verbose=True,
             else:
                 res_labels = []
                 eg = None
-            if refstep:
-                STEPS = [refstep.truss,step.truss]
-            else:
-                STEPS = step.truss
-            cdata,cells = create_cell_data(mesh,eg,res.truss,STEPS,
+            cdata,cells = create_cell_data(mesh,eg,res.truss,step.truss,
                                            res_labels,res.nTrusses,
                                            vtk.vtkLine,vtk.VTK_LINE,
                                            res.trussesRead)
@@ -479,7 +417,7 @@ def get_section_diagram(mesh,plane):
         
     return mbd
 
-def get_section(mesh,plane,origin=0,loc_syst=0,matlist=[],EFlist=[],LFlist=[],thlist=[],disp=False):
+def get_section(mesh,plane,origin=0,loc_syst=0,matlist=[],EFlist=[],LFlist=[],thlist=[]):
 
     if origin==0:
         origin = plane.GetOrigin()
@@ -511,10 +449,6 @@ def get_section(mesh,plane,origin=0,loc_syst=0,matlist=[],EFlist=[],LFlist=[],th
     N = cdata.GetArray('SMFORCE')
     T = cdata.GetArray('SQFORCE')
 
-    if disp:
-        pdata = lines.GetPointData()
-        D = pdata.GetArray('DISP_TRA')
-
     segments = []
     for kl in range(lines.GetNumberOfCells()):
         if len(matlist)==0 or mat.GetTuple1(kl) in matlist:
@@ -526,11 +460,7 @@ def get_section(mesh,plane,origin=0,loc_syst=0,matlist=[],EFlist=[],LFlist=[],th
                         id1 = line.GetPointId(1)
                         pt0 = points.GetPoint(id0)
                         pt1 = points.GetPoint(id1)
-                        if disp:
-                            vals = [M.GetTuple(kl),N.GetTuple(kl),T.GetTuple(kl),
-                                    [D.GetTuple(id0),D.GetTuple(id1)]]
-                        else:
-                            vals = [M.GetTuple(kl),N.GetTuple(kl),T.GetTuple(kl)]
+                        vals = [M.GetTuple(kl),N.GetTuple(kl),T.GetTuple(kl)]
                         segments.append([project_on_plane(base,origin,pt0),
                                          project_on_plane(base,origin,pt1),vals])
 ##                if id1>id0:
@@ -668,7 +598,7 @@ def contourf(val,crd,output,loc_syst,orig,ax,levels=0):
             levels = np.linspace(min(val),max(val),10)
     except:
         pass
-    CS = ax.contourf(X,Z,V,levels,extend='both')
+    CS = ax.contourf(X,Z,V,levels)
 
     return CS
 
@@ -742,14 +672,6 @@ def extract_interfaces(output,array='mat'):
                 interfaces.append(interf)
 
     return interfaces
-
-def create_diff_dataset(mesh0,mesh1):
-    if not mesh0.GetNumberOfCells()==mesh1.GetNumberOfCells():
-        print('Number of elements is not equal!')
-        return 0
-    if not mesh0.GetNumberOfNodes()==mesh1.GetNumberOfNodes():
-        print('Number of nodes is not equal!')
-        return 0
 
 class pl_view:
     def __init__(self,grid):

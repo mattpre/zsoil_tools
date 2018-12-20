@@ -1,11 +1,12 @@
 Metadata-Version: 1.1
 Name: zsoil-tools
-Version: 1.1.12
+Version: 1.1.13
 Summary: Tools for pre- and postprocessing ZSoil data
 Home-page: http:www.geomod.ch
 Author: Matthias Preisig
 Author-email: mpreisig@geomod.ch
 License: GNU AGPLv3
+Description-Content-Type: UNKNOWN
 Description: UNKNOWN
 Keywords: ZSoil finite elements
 Platform: UNKNOWN

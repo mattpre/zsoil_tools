@@ -266,7 +266,6 @@ class zsoil_results:
         self.nShells = 0
         self.nTrusses = 0
         self.nPiles = 0
-        self.nNodalLinks = 0
         self.num_volumics = []
         self.num_shells = []
         self.num_beams = []
@@ -284,9 +283,6 @@ class zsoil_results:
         self.piles = []
         self.nails = []
         self.anchors = []
-
-        self.lists = []
-        self.nodallinks = []
 
         self.logfile = 0
         
@@ -331,14 +327,12 @@ class zsoil_results:
 
     def read_dat(self):
         print self.pathname + '/' + self.problem_name + '.dat'
-        file = open(self.pathname + '/' + self.problem_name + '.dat')
-        lines = file.readlines()
+        file = open(self.pathname + '/' + self.problem_name + '.dat')  
 
         lcount = 0
-        kl = 0
-        while kl<len(lines):
-            line = lines[kl]
-            kl += 1
+        line = ''
+        while 1:
+            line = file.readline()
             try:
                 ele_type = line.split()[1]
             except:
@@ -433,14 +427,12 @@ class zsoil_results:
                 self.nNodes = int(line.split()[1])
                 crd = [[] for k in range(dim)]
                 for k in range(self.nNodes):
-                    line = lines[kl]
-                    kl += 1
+                    line = file.readline()
                     cpos = [[10,30],[30,50],[50,70]]
                     for kk in range(dim):
                         crd[kk].append(float(line[cpos[kk][0]:cpos[kk][1]]))
                     if 'L_REC' in line:
-                        line = lines[kl]
-                        kl += 1
+                        line = file.readline()
                 self.coords = crd
             elif 'JOB_TYPE' in line:
                 self.jobtype = line.split()[1]
@@ -450,8 +442,7 @@ class zsoil_results:
                     dim = 2
             elif 'PROP ' in line:
                 self.nPS = int(line.split()[1])
-                line = lines[kl]
-                kl += 1
+                line = file.readline()
                 for kps in range(self.nPS):
                     ps = property_set()
                     self.property_sets.append(ps)
@@ -463,39 +454,33 @@ class zsoil_results:
                     ps.LF = int(v[3])
                     ps.matmodel = v[1]
 
-                    lastpos = kl-1
-                    line = lines[kl]
-                    kl += 1
+                    lastpos = file.tell()
+                    line = file.readline()
                     while len(line)<2:
-                        line = lines[kl]
-                        kl += 1
+                        line = file.readline()
                     while not line[1]==' ':
                         if not line[0]==' ' and not line[:5]=='HUMID' and not line[0]=='-':
-                            kl = lastpos
+                            file.seek(lastpos)
                             break
-                        lastpos = kl-1
-                        line = lines[kl]
-                        kl += 1
+                        lastpos = file.tell()
+                        line = file.readline()
                         while len(line)<2:
-                            line = lines[kl]
-                            kl += 1
+                            line = file.readline()
             elif 'EXISTFUN' in line:
                 self.nEF = int(line.split()[1])
                 for kef in range(self.nEF):
-                    line = lines[kl+1]
-                    kl += 2
+                    line = file.readline()
+                    line = file.readline()
                     v = line.split()
                     self.EF.append([float(v[0]),float(v[1])])
             elif 'ACCEL_GLOB' in line:
                 self.accel_LTF = int(line.split()[1])
-                line = lines[kl]
-                kl += 1
+                line = file.readline()
                 self.accel_mult = float(line.split()[0])
             elif 'PILES' in line:
                 self.nPiles = int(line.split()[1])
                 for kp in range(self.nPiles):
-                    line = lines[kl]
-                    kl += 1
+                    line = file.readline()
                     if len(self.piles)==kp:
                         aPile = pile()
                         self.piles.append(aPile)
@@ -505,23 +490,20 @@ class zsoil_results:
                     aPile.nBeams = int(v[1])
                     aPile.cnt0D = int(v[2])
                     for ke in range(aPile.nBeams):
-                        line = lines[kl]
-                        kl += 1
+                        line = file.readline()
                         v = line.split()
                         aPile.beams.append(int(v[0]))
                         aPile.cnt1D.append(int(v[1]))
             elif 'NAILS' in line:
                 self.nNails = int(line.split()[1])
                 for kp in range(self.nNails):
-                    line = lines[kl]
-                    kl += 1
+                    line = file.readline()
                     aNail = nail()
                     v = line.split()
                     aNail.nBeams = int(v[1])
 ##                    aNail.cnt0D = int(v[2])
                     for ke in range(aNail.nBeams):
-                        line = lines[kl]
-                        kl += 1
+                        line = file.readline()
                         v = line.split()
                         aNail.beams.append(int(v[0]))
                         aNail.cnt1D.append(int(v[1]))
@@ -529,15 +511,13 @@ class zsoil_results:
             elif 'ANCHOR_HEADS' in line:
                 self.nAnchors = int(line.split()[1])
                 for kp in range(self.nAnchors):
-                    line = lines[kl]
-                    kl += 1
+                    line = file.readline()
                     anAnchor = anchor()
                     v = line.split()
                     anAnchor.nTrusses = int(v[1])
 ##                    anAnchor.cnt0D = int(v[2])
                     for ke in range(anAnchor.nTrusses):
-                        line = lines[kl]
-                        kl += 1
+                        line = file.readline()
                         v = line.split()
                         anAnchor.trusses.append(int(v[0]))
                         anAnchor.cnt1D.append(int(v[1]))
@@ -545,47 +525,41 @@ class zsoil_results:
                     
             elif 'UNITS' in line:
                 pass
-            elif 'LINK' in line:
-                self.nNodalLinks = int(line.split()[1])
-                for kl in range(self.nNodalLinks):
-                    v = file.readline().split()
-                    self.nodallinks.append((int(v[0]),int(v[1])))
             elif 'LIST' in line:
                 nList = int(line.split()[1])
                 labels = []
-                for klist in range(nList):
-                    line = lines[kl]
-                    kl += 1
+                for kl in range(nList):
+                    line = file.readline()
                     nVal = int(line.split()[2])
-                    label = line[37:-1]
+                    rType = int(line.split()[3])
+                    label = line[37:]
                     labels.append(label)
-                    # rtype defines how to read the values
-                    vals = []
-                    if int(line.split()[3])==1:
-                        for kv in range(int(numpy.ceil(nVal/10.))):
+                    if rType==1:
+                        line = file.readline()
+                        if 'P' in label and 'N' in label and not '_' in label:
+                            kp = int(label.split()[0][1:])-1
+                            if len(self.piles)==kp:
+                                aPile = pile()
+                                self.piles.append(aPile)
+                            else:
+                                aPile = self.piles[kp]
+                            kb = int(label.split()[1][1:])
+                            eles = [int(v) for v in line.split()]
+                            if len(self.piles[kp].volumics)==0:
+                                self.piles[kp].volumics.append([eles[0]])
+                            else:
+                                if not eles[0]==self.piles[kp].volumics[-1][-1]:
+                                    self.piles[kp].volumics[-1].append(eles[0])
+                                self.piles[kp].volumics.append([eles[-1]])
+##                            self.piles[kp].volumics.append([int(v) for v in line.split()])
+                        elif 'DRM' in label:
+                            for kv in range(int(numpy.ceil(nVal/10.))-1):
+                                line = file.readline()
+                    elif rType==2:
+                        for kv in range(numpy.ceil(nVal/10.)):
                             line = file.readline()
-                            for v in line.split():
-                                vals.append(int(v))
-                    elif int(line.split()[3])==2:
-                        for kv in range(nVal):
-                            v = file.readline().split()
-                            vals.append((int(v[0]),int(v[1]),int(v[2])))
-                    self.lists.append((vals,label))
-                    if 'P' in label and 'N' in label and not '_' in label:
-                        kp = int(label.split()[0][1:])-1
-                        if len(self.piles)==kp:
-                            aPile = pile()
-                            self.piles.append(aPile)
-                        else:
-                            aPile = self.piles[kp]
-                        kb = int(label.split()[1][1:])
-                        eles = vals
-                        if len(self.piles[kp].volumics)==0:
-                            self.piles[kp].volumics.append([eles[0]])
-                        else:
-                            if not eles[0]==self.piles[kp].volumics[-1][-1]:
-                                self.piles[kp].volumics[-1].append(eles[0])
-                            self.piles[kp].volumics.append([eles[-1]])
+                    else:
+                        print 'error in reading dat-file: LIST'
                         
 
         file.close()
