@@ -174,7 +174,18 @@ class property_set:
         self.EF = 0
 ##        self.EF_active = []
         self.LF = 0
-        
+
+class material:
+    def __init__(self):
+        self.label = ''
+        self.number = 0
+        self.ps = 0
+        self.model = ''
+        self.unit_weight = dict()
+        self.elastic = dict()
+        self.flow = dict()
+        self.nonlinear = dict()
+        self.initial = dict()        
         
 class time_step:
     def __init__(self):
@@ -254,6 +265,7 @@ class zsoil_results:
         self.nLTF = 0
         self.EF = []
         self.nEF = 0
+        self.materials = []
 
         self.accel_LTF = 0
         self.accel_mult = 0
@@ -1891,6 +1903,70 @@ class zsoil_results:
                 
         f.close()
         self.contactsRead = True
+
+    def read_eda(self):
+        file = open(self.pathname + '/' + self.problem_name + '.eda')
+        print self.pathname + '/' + self.problem_name + '.eda'
+
+        for line in iter(lambda: file.readline(), ""):
+            if 'MATERIAL PROPERTIES' in line:
+                line = file.readline()
+                line = file.readline()
+                line = file.readline()
+                line = file.readline()
+                while not '--------------------' in line:
+                    if 'Material label' in line:
+                        mat = material()
+                        self.materials.append(mat)
+                        mat.label = (line.split(':')[1][:-1].lstrip()).rstrip()
+                        mat.ps = int(file.readline().split(':')[1])
+                        mat.number = int(file.readline().split(':')[1])
+                        mat.model = (file.readline().split(':')[1][:-1].lstrip()).rstrip()
+                        line = file.readline()
+                    elif '[' in line:
+                        if 'UNIT WEIGHT PARAMETERS' in line:
+                            line = file.readline()
+                            while not '[' in line and len(line)>4 and not line[:20]=='-'*20:
+                                if ':' in line:
+                                    v = line.split(':',1)
+                                    mat.unit_weight[v[0]] = float(v[1])
+                                line = file.readline()
+                        elif 'ELASTIC PARAMETERS' in line:
+                            line = file.readline()
+                            while not '[' in line and len(line)>4 and not line[:20]=='-'*20:
+                                if ':' in line:
+                                    v = line.split(':',1)
+                                    mat.elastic[(v[0].lstrip()).rstrip()] = float(v[1])
+                                line = file.readline()
+                        elif 'FLOW PARAMETERS' in line:
+                            line = file.readline()
+                            while not '[' in line and len(line)>4 and not line[:20]=='-'*20:
+                                if ':' in line:
+                                    v = line.split(':',1)
+                                    mat.flow[(v[0].lstrip()).rstrip()] = float(v[1])
+                                line = file.readline()
+                        elif 'NONLINEAR PARAMETERS' in line:
+                            line = file.readline()
+                            while not '[' in line and len(line)>4 and not line[:20]=='-'*20:
+                                if ':' in line:
+                                    v = line.split(':',1)
+                                    mat.nonlinear[(v[0].lstrip()).rstrip()] = float(v[1])
+                                line = file.readline()
+                        elif 'INITIAL STATE KO PARAMETERS' in line:
+                            line = file.readline()
+                            while not '[' in line and len(line)>4 and not line[:20]=='-'*20:
+                                if ':' in line:
+                                    v = line.split(':',1)
+                                    mat.initial[(v[0].lstrip()).rstrip()] = float(v[1])
+                                line = file.readline()
+                        else:
+                            line = file.readline()
+                            while not '[' in line:
+                                line = file.readline()
+                    else:
+                        line = file.readline()
+        file.close()                
+        
         
     def read_LTF(self):
         file = open(self.pathname + '/' + self.problem_name + '.dat')
@@ -2070,7 +2146,7 @@ class zsoil_results:
 
     def compute_invariants(self,ele_type='vol',res_type='stress',steps=0):
         if steps==0:
-            steps = range(len(self.steps)-1)
+            steps = range(len(self.steps))
         if 'vol' in ele_type:
             for kt in steps:
                 if len(steps)*self.nVolumics>1e6:
@@ -2091,7 +2167,7 @@ class zsoil_results:
                 
                 step.vol.invar = [[],[],[],[]]
                 for kele in range(self.nVolumics):
-                    if self.jobtype=='PLANESTRAIN':
+                    if self.jobtype=='PLANESTRAIN' or self.jobtype=='AXISYMETRY':
                 
                         sigma = numpy.array([[sxx[kele],sxy[kele],0.0],
                                              [sxy[kele],syy[kele],0.0],
