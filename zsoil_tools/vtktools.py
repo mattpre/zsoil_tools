@@ -479,12 +479,12 @@ def get_section_diagram(mesh,plane):
         
     return mbd
 
-def get_section(mesh,plane,origin=0,loc_syst=0,matlist=[],EFlist=[],LFlist=[],thlist=[],disp=False):
+def get_section(mesh,plane,origin=0,loc_syst=[],matlist=[],EFlist=[],LFlist=[],thlist=[],disp=False):
 
     if origin==0:
         origin = plane.GetOrigin()
     normal = plane.GetNormal()
-    if loc_syst==0:
+    if not len(loc_syst):
         if not abs(normal[1]-1)<1e-6:
             base = np.array([np.cross(normal,(0,1,0)),(0,1,0)])
         else:

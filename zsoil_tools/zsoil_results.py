@@ -563,7 +563,7 @@ class zsoil_results:
                     line = lines[kl]
                     kl += 1
                     v = line.split()
-                    self.nodallinks.append((int(v[0]),int(v[1])))
+                    self.nodallinks.append((int(v[0]),int(v[1]),int(v[3])))
             elif 'LIST' in line:
                 nList = int(line.split()[1])
                 labels = []
@@ -585,7 +585,7 @@ class zsoil_results:
                         for kv in range(nVal):
                             line = lines[kl]
                             kl += 1
-                            v = linesplit()
+                            v = line.split()
                             vals.append((int(v[0]),int(v[1]),int(v[2])))
                     self.lists.append((vals,label))
                     if 'P' in label and 'N' in label and not '_' in label:
@@ -2139,10 +2139,7 @@ class zsoil_results:
                     ev.sort(reverse=True)
                     step.vol.princ[0].append(ev[0])
                     step.vol.princ[1].append(ev[1])
-                    if '2D' in ele_type:
-                        step.vol.princ[2].append(0)
-                    else:
-                        step.vol.princ[2].append(ev[2])
+                    step.vol.princ[2].append(ev[2])
 
     def compute_invariants(self,ele_type='vol',res_type='stress',steps=0):
         if steps==0:
