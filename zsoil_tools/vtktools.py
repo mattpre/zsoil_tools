@@ -164,7 +164,7 @@ def write_unstructured_grid(filename,mesh,cdata,nEle,EFs,time,verbose,
     eleList = vtk.vtkIdList()
     EF = cdata.GetArray('EF')
     for k in range(nEle):
-        if EFs[EF.GetValue(k)][0]<=time and EFs[EF.GetValue(k)][1]>time:
+        if EFs[EF.GetValue(k)][0]<time and EFs[EF.GetValue(k)][1]>=time:
             a=eleList.InsertNextId(k)
     extract.SetCellList(eleList)
     grid = extract.GetOutputPort()
@@ -199,10 +199,19 @@ def write_unstructured_grid(filename,mesh,cdata,nEle,EFs,time,verbose,
     if not verbose:
         print '%i elements written to %s'%(eleList.GetNumberOfIds(),filename)
 
+def get_tstr(step,refstep=False):
+        if refstep:
+            intpart = int(float('%1.1f'%(step.time)))
+            tstr = str(intpart).rjust(3,'0')+'_'+('%1.0f'%(100*(step.time-intpart))).rjust(2,'0')
+            intpart = int(float('%1.1f'%(refstep.time)))
+            tstr += '-'+str(intpart).rjust(3,'0')+'_'+('%1.0f'%(100*(refstep.time-intpart))).rjust(2,'0')
+        else:
+            intpart = int(float('%1.1f'%(step.time)))
+            tstr = str(intpart).rjust(3,'0')+'_'+('%1.0f'%(100*(step.time-intpart))).rjust(2,'0')
 
 def write_vtu(res,tsteps='all',verbose=True,
               beams=False,vol=False,shells=False,trusses=False,cnt=False,
-              disp=True,outline=False,cut=[],refstep=0):
+              disp=True,outline=False,cut=[],refstep=False):
 
     dim = len(res.coords)
     points = vtk.vtkPoints()
@@ -233,11 +242,7 @@ def write_vtu(res,tsteps='all',verbose=True,
         step = res.steps[kt]
         if not verbose:
             print 'writing step %i'%(kt)
-        if refstep:
-            tstr = str(int(step.time)).rjust(3,'0')+'_'+str(int((step.time-int(step.time))*100)).rjust(2,'0')
-            tstr += '-'+str(int(refstep.time)).rjust(3,'0')+'_'+str(int((refstep.time-int(refstep.time))*100)).rjust(2,'0')
-        else:
-            tstr = str(int(step.time)).rjust(3,'0')+'_'+str(int((step.time-int(step.time))*100)).rjust(2,'0')
+        tsrt = get_tstr(step,refstep)
 
         if res.nodalRead:
             nodal_res = res.nodal_res[0]
