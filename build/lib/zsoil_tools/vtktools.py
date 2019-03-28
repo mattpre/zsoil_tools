@@ -1019,7 +1019,7 @@ def get_lut(ncol=20,lut_type='mat',maxind=20,vrange=(0,1)):
 
 
 
-def compute_volume(self,pts):
+def compute_volume(pts):
     
     x = []
     y = []
