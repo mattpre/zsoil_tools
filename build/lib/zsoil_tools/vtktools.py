@@ -1017,5 +1017,21 @@ def get_lut(ncol=20,lut_type='mat',maxind=20,vrange=(0,1)):
 
     return lut
 
-                
+
+
+def compute_volume(self,pts):
+    
+    x = []
+    y = []
+    for kk in range(len(pts)):
+        x.append(pts[kk][0])
+        y.append(pts[kk][1])
+    if len(pts)==3:
+        a = 0.5*abs((x[0]-x[2])*(y[1]-y[0])-(x[0]-x[1])*(y[2]-y[0]))
+    elif len(pts)==4:
+        a1 = 0.5*abs((x[0]-x[2])*(y[1]-y[0])-(x[0]-x[1])*(y[2]-y[0]))
+        a2 = 0.5*abs((x[0]-x[3])*(y[2]-y[0])-(x[0]-x[2])*(y[3]-y[0]))
+        a = a1+a2
+
+    return a   
         

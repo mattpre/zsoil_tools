@@ -6,7 +6,14 @@ Home-page: http:www.geomod.ch
 Author: Matthias Preisig
 Author-email: mpreisig@geomod.ch
 License: GNU AGPLv3
-Description: UNKNOWN
+Description: python setup.py bdist_egg
+        git add .
+        git commit -m"some message"
+        git push
+        
+        client side:
+        pip install git+https://github.com/mattpre/zsoil_tools.git
+        
 Keywords: ZSoil finite elements
 Platform: UNKNOWN
 Classifier: Development Status :: 4 - Beta

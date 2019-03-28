@@ -2186,12 +2186,15 @@ class zsoil_results:
         
         x = []
         y = []
-        for kk in range(4):
+        for kk in range(len(inel)):
             x.append(self.coords[0][inel[kk]-1])
             y.append(self.coords[1][inel[kk]-1])
-        a1 = 0.5*abs((x[0]-x[2])*(y[1]-y[0])-(x[0]-x[1])*(y[2]-y[0]))
-        a2 = 0.5*abs((x[0]-x[3])*(y[2]-y[0])-(x[0]-x[2])*(y[3]-y[0]))
-        a = a1+a2
+        if len(inel)==3:
+            a = 0.5*abs((x[0]-x[2])*(y[1]-y[0])-(x[0]-x[1])*(y[2]-y[0]))
+        elif len(inel)==4:
+            a1 = 0.5*abs((x[0]-x[2])*(y[1]-y[0])-(x[0]-x[1])*(y[2]-y[0]))
+            a2 = 0.5*abs((x[0]-x[3])*(y[2]-y[0])-(x[0]-x[2])*(y[3]-y[0]))
+            a = a1+a2
 
         return a
 
