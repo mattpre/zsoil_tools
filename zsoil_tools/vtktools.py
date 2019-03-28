@@ -245,7 +245,10 @@ def write_vtu(res,tsteps='all',verbose=True,
         step = res.steps[kt]
         if not verbose:
             print 'writing step %i'%(kt)
-        tstr = get_tstr(step.time,refstep.time)
+        if refstep:
+            tstr = get_tstr(step.time,refstep.time)
+        else:
+            tstr = get_tstr(step.time)
 
         if res.nodalRead:
             nodal_res = res.nodal_res[0]
