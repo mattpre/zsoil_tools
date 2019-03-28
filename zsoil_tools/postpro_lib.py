@@ -958,4 +958,54 @@ class pl_view:
             ax0.axis('off')
 
         return fig
-        
+
+def get_legend(lut,categories={},hfrac=0.8,vpad=0.1,hwratio=5,dpi=96,
+               label='Label [Unit]'):
+
+    from matplotlib.patches import Rectangle
+    from PIL import Image
+    
+    fig = plt.figure(figsize=(4.5,hwratio*4.5),dpi=dpi)
+    bbox_props = dict(boxstyle='round',fc="w", ec="k", lw=2)
+
+    ax = fig.add_subplot(111)
+
+    if len(categories.keys()):
+        # Legend with categories (materials)
+        keys = categories.keys()
+        nval = len(keys)
+        dh = min(hfrac/(30*(1-vpad)+(30+1)*vpad)*(1-vpad),1./(nval*(1-vpad)+(nval+1)*vpad)*(1-vpad))
+        ds = dh/(1-vpad)*vpad
+        for kc in range(nval):
+            p = Rectangle((2*ds,1-(kc+1)*(dh+ds)),2-4*ds,dh,fc=lut.GetTableValue(keys[kc]%20-1),ec='k')
+            ax.add_patch(p)
+            ax.text(0.1,1-(kc+1)*(dh+ds)+dh/2,str(keys[kc])+': '+categories[keys[kc]],
+                    va='center',size=20)
+    else:
+        # Colormap legend
+        nval = lut.GetNumberOfValues()
+        vpad *= 5
+        dh = min(hfrac/(30*(1-vpad)+(30+1)*vpad)*(1-vpad),1./(nval*(1-vpad)+(nval+1)*vpad)*(1-vpad))
+        ds = dh/(1-vpad)*vpad
+        vrange = lut.GetRange()
+        for kc in range(nval):
+            val = vrange[0] + (vrange[1]-vrange[0])/nval*kc
+            col = [0,0,0]
+            lut.GetColor(val,col)
+            p = Rectangle((2*ds,1-(kc+1)*(dh+ds)),2-4*ds,dh,fc=col,
+                          ec='None')
+            ax.add_patch(p)
+            ax.text(0.1,1-(kc+1)*(dh+ds)-ds/2,'%1.2e'%(val),
+                    va='center',size=20)
+    ax.annotate('label',size=24,
+                xy=(0.5,1-hfrac-0.02),xycoords='axes fraction',ha='center',va='bottom')
+    ax.annotate('Model created\nand computed\nwith ZSoil',size=24,
+                xy=(0.5,0.01),xycoords='axes fraction',ha='center',va='bottom')
+    ax.set_xlim(0,2)
+    ax.set_ylim(0,1)
+    ax.axis('off')
+    fig.tight_layout()
+    fig.savefig('legend.png')
+    leg = Image.open('legend.png')
+
+    return leg

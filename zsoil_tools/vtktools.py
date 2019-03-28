@@ -10,6 +10,7 @@
 import numpy as np
 import math
 import vtk
+from matplotlib import colors
 
 
 res2import = {'NODAL':['DISP_TRA','DISP_ROT','PPRESS','PRES_HEAD'],
@@ -199,15 +200,17 @@ def write_unstructured_grid(filename,mesh,cdata,nEle,EFs,time,verbose,
     if not verbose:
         print '%i elements written to %s'%(eleList.GetNumberOfIds(),filename)
 
-def get_tstr(step,refstep=False):
-        if refstep:
-            intpart = int(float('%1.1f'%(step.time)))
-            tstr = str(intpart).rjust(3,'0')+'_'+('%1.0f'%(100*(step.time-intpart))).rjust(2,'0')
-            intpart = int(float('%1.1f'%(refstep.time)))
-            tstr += '-'+str(intpart).rjust(3,'0')+'_'+('%1.0f'%(100*(refstep.time-intpart))).rjust(2,'0')
+def get_tstr(t,t0=False):
+        if t0:
+            intpart = int(float('%1.1f'%(t)))
+            tstr = str(intpart).rjust(3,'0')+'_'+('%1.0f'%(100*(t-intpart))).rjust(2,'0')
+            intpart = int(float('%1.1f'%(t0)))
+            tstr += '-'+str(intpart).rjust(3,'0')+'_'+('%1.0f'%(100*(t0-intpart))).rjust(2,'0')
         else:
-            intpart = int(float('%1.1f'%(step.time)))
-            tstr = str(intpart).rjust(3,'0')+'_'+('%1.0f'%(100*(step.time-intpart))).rjust(2,'0')
+            intpart = int(float('%1.1f'%(t)))
+            tstr = str(intpart).rjust(3,'0')+'_'+('%1.0f'%(100*(t-intpart))).rjust(2,'0')
+
+        return tstr
 
 def write_vtu(res,tsteps='all',verbose=True,
               beams=False,vol=False,shells=False,trusses=False,cnt=False,
@@ -242,7 +245,7 @@ def write_vtu(res,tsteps='all',verbose=True,
         step = res.steps[kt]
         if not verbose:
             print 'writing step %i'%(kt)
-        tsrt = get_tstr(step,refstep)
+        tstr = get_tstr(step.time,refstep.time)
 
         if res.nodalRead:
             nodal_res = res.nodal_res[0]
@@ -950,4 +953,66 @@ class pl_view:
             ax0.axis('off')
 
         return fig
+
+def get_lut(ncol=20,lut_type='mat',maxind=20,vrange=(0,1)):
+
+    if lut_type=='mat':
+        c = ['#ffdcd2',
+             '#ffa4a4',
+             '#f98568',
+             '#da180e',
+             '#ffffc6',
+             '#def538',
+             '#b0b000',
+             '#878e2b',
+             '#dbfdc6',
+             '#8bf391',
+             '#5ac960',
+             '#658750',
+             '#e0e4fe',
+             '#bb9af1',
+             '#548bcf',
+             '#fdcbfe',
+             '#e75ae3',
+             '#ad5ab4',
+             '#abe3e7',
+             '#67b1ae']
+        lut = vtk.vtkLookupTable()
+        lut.SetNumberOfTableValues(ncol*int(np.ceil(maxind/20.)))
+        for k in range(ncol*int(np.ceil(maxind/20.))):
+            cv = colors.hex2color(c[k%20])
+            lut.SetTableValue(k,cv[0],cv[1],cv[2])
+    elif lut_type=='maps':
+        c = ['#4b0bf4',
+             '#3c8aff',
+             '#3da7fe',
+             '#3fbefc',
+             '#45d7f5',
+             '#53e8e8',
+             '#5fdcc2',
+             '#58e28f',
+             '#51ee4d',
+             '#8ffb40',
+             '#bbfb75',
+             '#d8fe63',
+             '#ffff00',
+             '#f1e723',
+             '#efd850',
+             '#eeba4d',
+             '#f28b40',
+             '#fe4743',
+             '#e90601',
+             '#c15004']
+        
+        lut = vtk.vtkDiscretizableColorTransferFunction()
+        lut.DiscretizeOn()
+        lut.SetNumberOfValues(ncol)
+        dv = vrange[1]-vrange[0]
+        for k,cc in enumerate(c):
+            cv = colors.hex2color(cc)
+            lut.AddRGBPoint(k*dv/ncol+vrange[0],cv[0],cv[1],cv[2])
+
+    return lut
+
+                
         
