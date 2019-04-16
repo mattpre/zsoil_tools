@@ -677,19 +677,22 @@ def contourf(val,crd,output,loc_syst,orig,ax,levels=0):
     # contour data:
     bounds = [[min(crd[0])-2,max(crd[0])+2],
               [min(crd[1])-2,max(crd[1])+2]]
-    xnew = numpy.arange(bounds[0][0],bounds[0][1],1)
-    znew = numpy.arange(bounds[1][0],bounds[1][1],1)
-    X,Z = numpy.meshgrid(xnew,znew)
-    V = numpy.zeros([len(X),len(X[0])])
+    xnew = np.arange(bounds[0][0],bounds[0][1],1)
+    znew = np.arange(bounds[1][0],bounds[1][1],1)
+    X,Z = np.meshgrid(xnew,znew)
+    V = np.zeros([len(X),len(X[0])])
+    val1 = []
     for kx in range(len(X[0])):
         for kz in range(len(X)):
             V[kz][kx] = loc.interpolate(X[kz][kx],Z[kz][kx],0)
+            if not np.isnan(V[kz][kx]):
+                val1.append(V[kz][kx])
     try:
         if levels==0:
-            levels = numpy.linspace(min(val),max(val),10)
+            levels = np.linspace(min(val1),max(val1),10)
     except:
         pass
-    CS = ax.contourf(X,Z,V,levels)
+    CS = ax.contourf(X,Z,V,levels,extend='both')
 
     return CS
 
@@ -959,8 +962,8 @@ class pl_view:
 
         return fig
 
-def get_legend(lut,categories={},hfrac=0.8,vpad=0.1,hwratio=5,dpi=96,
-               label='Label [Unit]'):
+def get_legend(lut,categories={},hfrac=0.8,vpad=0.12,hwratio=4,dpi=96,
+               label='Label [Unit]',ncolors=30):
 
     from matplotlib.patches import Rectangle
     from PIL import Image
@@ -974,18 +977,18 @@ def get_legend(lut,categories={},hfrac=0.8,vpad=0.1,hwratio=5,dpi=96,
         # Legend with categories (materials)
         keys = categories.keys()
         nval = len(keys)
-        dh = min(hfrac/(30*(1-vpad)+(30+1)*vpad)*(1-vpad),1./(nval*(1-vpad)+(nval+1)*vpad)*(1-vpad))
+        dh = min(hfrac/(ncolors*(1-vpad)+(ncolors+1)*vpad)*(1-vpad),1./(nval*(1-vpad)+(nval+1)*vpad)*(1-vpad))
         ds = dh/(1-vpad)*vpad
         for kc in range(nval):
             p = Rectangle((2*ds,1-(kc+1)*(dh+ds)),2-4*ds,dh,fc=lut.GetTableValue(keys[kc]%20-1),ec='k')
             ax.add_patch(p)
-            ax.text(0.1,1-(kc+1)*(dh+ds)+dh/2,str(keys[kc])+': '+categories[keys[kc]],
-                    va='center',size=20)
+            ax.text(0.1,1-(kc+1)*(dh+ds)+dh/3,str(keys[kc])+': '+categories[keys[kc]],
+                    va='center',size=int(600*dh))
     else:
         # Colormap legend
         nval = lut.GetNumberOfValues()
         vpad *= 5
-        dh = min(hfrac/(30*(1-vpad)+(30+1)*vpad)*(1-vpad),1./(nval*(1-vpad)+(nval+1)*vpad)*(1-vpad))
+        dh = min(hfrac/(ncolors*(1-vpad)+(ncolors+1)*vpad)*(1-vpad),1./(nval*(1-vpad)+(nval+1)*vpad)*(1-vpad))
         ds = dh/(1-vpad)*vpad
         vrange = lut.GetRange()
         for kc in range(nval):
@@ -997,7 +1000,7 @@ def get_legend(lut,categories={},hfrac=0.8,vpad=0.1,hwratio=5,dpi=96,
             ax.add_patch(p)
             ax.text(0.1,1-(kc+1)*(dh+ds)-ds/2,'%1.2e'%(val),
                     va='center',size=20)
-    ax.annotate('label',size=24,
+    ax.annotate(label,size=24,
                 xy=(0.5,1-hfrac-0.02),xycoords='axes fraction',ha='center',va='bottom')
     ax.annotate('Model created\nand computed\nwith ZSoil',size=24,
                 xy=(0.5,0.01),xycoords='axes fraction',ha='center',va='bottom')

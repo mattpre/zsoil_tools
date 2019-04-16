@@ -68,3 +68,4 @@ vtktools:
 - added support for refstep
 - added get_tstr()
 - added get_lut()
+- bugfix in create_cell_data for array with 1 component
