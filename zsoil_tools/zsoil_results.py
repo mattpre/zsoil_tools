@@ -2240,5 +2240,18 @@ class zsoil_results:
                 self.beam.loc_syst.append([numpy.array([x,y0,z0]),
                                            numpy.array([x,y1,z1])])
 
+    def get_LTF_at(self,kLTF,t):
+        LTF = self.LTF[kLTF]
+        v = LTF[1][0]
+        if len(LTF[0])>1:
+            for kk in range(1,len(LTF[0])):
+                if t>=LTF[0][kk-1] and t<LTF[0][kk]:
+                    t0 = LTF[0][kk-1]
+                    t1 = LTF[0][kk]
+                    v0 = LTF[1][kk-1]
+                    v1 = LTF[1][kk]
+                    v = v0 + (v1-v0)/(t1-t0)*(t-t0)
+                elif t>=LTF[0][-1]:
+                    v = LTF[1][-1]
 
-                    
+        return v
