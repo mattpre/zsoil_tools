@@ -69,3 +69,7 @@ vtktools:
 - added get_tstr()
 - added get_lut()
 - bugfix in create_cell_data for array with 1 component
+
+v1.1.15
+zsoil_inp:
+- added support for 2D quads
