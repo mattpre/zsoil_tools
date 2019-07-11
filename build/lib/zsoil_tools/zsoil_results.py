@@ -111,6 +111,7 @@ class nlshell:
         self.strain = []
         self.pla_code = []
         self.str_level = []
+        self.damage = []
         
 class beam:
     def __init__(self):
@@ -687,7 +688,11 @@ class zsoil_results:
                     line = file.readline()
                     lcount += 1
                     egroup.res_labels.append(line.split()[0])
-                    egroup.ncomp.append(int(line.split()[1]))
+                    # reading NS-CONTACT is not yet implemented:
+                    if egroup.res_labels[-1]=='ADDOUT':
+                        egroup.ncomp.append(0)
+                    else:
+                        egroup.ncomp.append(int(line.split()[1]))
                     comps = []
 ##                    if egroup.ncomp[-1]>1:
                     if len(line.split())>2:
@@ -1272,6 +1277,8 @@ class zsoil_results:
                         step.nlshell.pla_code = []
                     elif rt=='STR_LEVEL':
                         step.nlshell.str_level = []
+                    elif rt=='DAMAGE':
+                        step.nlshell.damage = []
 
                 # read results:
                 for kgp in range(nint):
@@ -1286,13 +1293,13 @@ class zsoil_results:
                         strain = [[] for c in egroup.comp_labels[egroup.res_labels.index('STRAINS')]]
                         pla_code = []
                         str_level = []
+                        damage = []
                         for kl in range(nLayers):
                             for rt in egroup.res_labels:
                                 krt = egroup.res_labels.index(rt)
                                 ncomp = len(egroup.comp_labels[krt])
                                 if rt=='POSITION':
                                     byte = f.read(4)
-##                                    print('position',struct.unpack('f',byte)[0])
                                     position.append(struct.unpack('f',byte)[0])
                                 elif rt=='STRESESS' or rt=='STRESSES':
                                     for k in range(ncomp):
@@ -1312,11 +1319,15 @@ class zsoil_results:
                                     byte = f.read(4)
 ##                                    print('str_level',struct.unpack('f',byte)[0])
                                     str_level.append(struct.unpack('f',byte)[0])
+                                elif rt=='DAMAGE':
+                                    byte = f.read(4)
+                                    damage.append(struct.unpack('f',byte)[0])
                         step.nlshell.position.append(position)
                         step.nlshell.stress.append(stress)
                         step.nlshell.strain.append(strain)
                         step.nlshell.pla_code.append(pla_code)
                         step.nlshell.str_level.append(str_level)
+                        step.nlshell.damage.append(damage)
 
             else:
                 offset = sum(egroup.ncomp)*nTotLayers*4
@@ -2240,5 +2251,18 @@ class zsoil_results:
                 self.beam.loc_syst.append([numpy.array([x,y0,z0]),
                                            numpy.array([x,y1,z1])])
 
+    def get_LTF_at(self,kLTF,t):
+        LTF = self.LTF[kLTF]
+        v = LTF[1][0]
+        if len(LTF[0])>1:
+            for kk in range(1,len(LTF[0])):
+                if t>=LTF[0][kk-1] and t<LTF[0][kk]:
+                    t0 = LTF[0][kk-1]
+                    t1 = LTF[0][kk]
+                    v0 = LTF[1][kk-1]
+                    v1 = LTF[1][kk]
+                    v = v0 + (v1-v0)/(t1-t0)*(t-t0)
+                elif t>=LTF[0][-1]:
+                    v = LTF[1][-1]
 
-                    
+        return v

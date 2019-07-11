@@ -97,7 +97,7 @@ def create_cell_data(mesh,eg,res_group,step_res,res_labels,nEle,
             for anArr in arrays:
                 aRes = getattr(step_res,anArr[1])
                 try:
-                    if anArr[2]==1:
+                    if anArr[2]==1 and len(aRes)==nEle:
                         anArr[0].InsertNextTuple1(aRes[ke])
                     else:
                         anArr[0].InsertNextTuple([comp[ke] for comp in aRes])
@@ -165,7 +165,7 @@ def write_unstructured_grid(filename,mesh,cdata,nEle,EFs,time,verbose,
     eleList = vtk.vtkIdList()
     EF = cdata.GetArray('EF')
     for k in range(nEle):
-        if EFs[EF.GetValue(k)][0]<time and EFs[EF.GetValue(k)][1]>=time:
+        if (EFs[EF.GetValue(k)][0]<time and EFs[EF.GetValue(k)][1]>=time) or (EFs[EF.GetValue(k)][0]==0 and time==0):
             a=eleList.InsertNextId(k)
     extract.SetCellList(eleList)
     grid = extract.GetOutputPort()
@@ -202,12 +202,12 @@ def write_unstructured_grid(filename,mesh,cdata,nEle,EFs,time,verbose,
 
 def get_tstr(t,t0=False):
         if t0:
-            intpart = int(float('%1.1f'%(t)))
+            intpart = int(float('%1.2f'%(t)))
             tstr = str(intpart).rjust(3,'0')+'_'+('%1.0f'%(100*(t-intpart))).rjust(2,'0')
-            intpart = int(float('%1.1f'%(t0)))
+            intpart = int(float('%1.2f'%(t0)))
             tstr += '-'+str(intpart).rjust(3,'0')+'_'+('%1.0f'%(100*(t0-intpart))).rjust(2,'0')
         else:
-            intpart = int(float('%1.1f'%(t)))
+            intpart = int(float('%1.2f'%(t)))
             tstr = str(intpart).rjust(3,'0')+'_'+('%1.0f'%(100*(t-intpart))).rjust(2,'0')
 
         return tstr
@@ -661,28 +661,6 @@ class locator:
             v = [self.values[aCell.GetPointId(k)] for k in range(3)]
             return sum([pcoords[kk]*v[kk] for kk in range(3)])
         
-def contourf(val,crd,output,loc_syst,orig,ax,levels=0):
-    loc = locator(output,val,loc_syst,orig)
-
-    # contour data:
-    bounds = [[min(crd[0])-2,max(crd[0])+2],
-              [min(crd[1])-2,max(crd[1])+2]]
-    xnew = np.arange(bounds[0][0],bounds[0][1],1)
-    znew = np.arange(bounds[1][0],bounds[1][1],1)
-    X,Z = np.meshgrid(xnew,znew)
-    V = np.zeros([len(X),len(X[0])])
-    for kx in range(len(X[0])):
-        for kz in range(len(X)):
-            V[kz][kx] = loc.interpolate(X[kz][kx],Z[kz][kx],0)
-    try:
-        if levels==0:
-            levels = np.linspace(min(val),max(val),10)
-    except:
-        pass
-    CS = ax.contourf(X,Z,V,levels,extend='both')
-
-    return CS
-
 from matplotlib.patches import Polygon
 def get_patches(output,loc_syst,orig,array='mat'):
 

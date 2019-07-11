@@ -76,6 +76,7 @@ class Material:
         self.name = str()
         self.type = str()
         self.cross_section = 0
+        self.parameters = dict()
 
 class ExistFun:
     def __init__(self):
@@ -263,8 +264,34 @@ class CrossSection:
                           7:'T-section'}
         self.dimensions = []
         self.values = []
-        
-        
+
+class ShellSection:
+    def __init__(self):
+        self.def_type = 0
+##        self.def_type_dict = {0:'Profiles',
+##                              1:'User',
+##                              2:'Values'}
+        self.name = ''
+        self.fibers = []
+        self.nFibers = []
+        self.thickness = 0
+        self.core_material = 0
+
+class ShellFiber:
+    def __init__(self):
+        self.number = 0
+        self.type = ''
+        self.type_dict = {0:'Core',
+                          1:'Reinforcement'}
+        self.area = 0
+        self.distance = 0
+        self.distance_from = 0
+        self.distance_from_dict = {0:'from top',
+                                   1:'from bottom',
+                                   2:'relative (-1,1)'}
+        self.material = 0
+        self.direction = 0
+
 class NodalMass:
     def __init__(self):
         self.node = 0
@@ -277,6 +304,7 @@ class zsoil_inp:
     def __init__(self,pathname,problem_name):
         self.pathname = pathname
         self.problem_name = problem_name
+        self.analysis_type = -1
 
         astep = time_step()
         astep.time = 0
@@ -319,6 +347,7 @@ class zsoil_inp:
         self.nReinfMembers = 0
         self.nLayeredBeamComponents = 0
         self.nNodalMasses = 0
+        self.nFiberMaterials = 0
 
         self.coords = [[],[],[]]
         self.vol = ele_info()
@@ -331,6 +360,7 @@ class zsoil_inp:
         self.EFs = dict()
         self.LFs = dict()
         self.materials = dict()
+        self.fiber_materials = dict()
         self.layered_beam_components = dict()
         self.surfLoads = []
         self.nodalLoads = []
@@ -367,6 +397,7 @@ class zsoil_inp:
         
         line = file.readline()
         line = file.readline()
+        self.analysis_type = int(line.split()[0])
         self.nVolumics = int(line.split()[11])
         self.nVolumics2D = int(line.split()[9])
         self.nNodes = int(line.split()[5])
@@ -437,12 +468,20 @@ class zsoil_inp:
                                 inel.append(int(v[kk+3]))
                             center = [0,0,0]
                             for kn in inel:
-                                center[0] += self.coords[0][kn-1]/8
-                                center[1] += self.coords[1][kn-1]/8
-                                center[2] += self.coords[2][kn-1]/8
-                            pos = 10
+                                center[0] += self.coords[0][kn-1]/4
+                                center[1] += self.coords[1][kn-1]/4
+                                center[2] += self.coords[2][kn-1]/4
+                            pos = 5
                         self.vol.inel.append(inel)
                         self.vol.number.append(int(v[1]))
+                        self.vol.mat.append(int(v[pos+4]))
+                        self.vol.EF.append(int(v[pos+7]))
+                        self.vol.LF.append(int(v[pos+8]))
+                        self.vol.rm1.append(int(v[pos+5]))
+                        self.vol.rm2.append(int(v[pos+6]))
+                        self.vol.center[0].append(center[0])
+                        self.vol.center[1].append(center[1])
+                        self.vol.center[2].append(center[2])
                         self.num_volumics.append(int(v[0]))
                     elif 'T3' in line:
                         v = line.split()
@@ -486,7 +525,10 @@ class zsoil_inp:
                         v = line.split()
                         self.beam.mat.append(int(v[0]))
                         self.beam.EF.append(int(v[3]))
-                        file.readline()
+                        line = file.readline()
+                        if int(line.split()[0])==1:
+                            file.readline()
+                            file.readline()
                         self.num_beams.append(int(v[0]))
             elif '.itg' in line and 'itg' in sections:
                 if debug:
@@ -839,13 +881,40 @@ class zsoil_inp:
                                     line = file.readline()
                                     sect.values = [float(v) for v in line.split()]
                                 mat.cross_section = sect
+                            elif 'GEOM->' in line and mat.type=='Shell Layered' and mat.buttons[6]==1:
+                                sect = ShellSection()
+                                v = line.split()
+                                sect.def_type = int(v[1])
+                                sect.nFibers = int(v[3])
+                                for kl in range(sect.nFibers):
+                                    fiber = ShellFiber()
+                                    fiber.number = kl+2
+                                    fiber.type = 1
+                                    fiber.area = float(v[4+kl*3])
+                                    fiber.distance = float(v[5+kl*3])
+                                    fiber.distance_from = int(v[6+kl*3])
+                                    sect.fibers.append(fiber)
+                                sect.core_material = int(v[4+sect.nFibers*3])
+                                for kl2 in range(sect.nFibers):
+                                    sect.fibers[kl2].material = int(v[5+sect.nFibers*3+kl2])
+                                mat.cross_section = sect
                             line = file.readline()
                         self.materials[mat.number] = mat
                 else:
                     self.nFiberMaterials = int(line.split('=')[1])
                     for km in range(self.nFiberMaterials):
+                        line = file.readline()
+                        mat = Material()
+                        mat.number = int(line.split()[2])
+                        line = file.readline()
+                        mat.type = line[:-1]
+                        line = file.readline()
+                        mat.name = line[:-1]
+                        line = file.readline()
+                        mat.buttons = [int(v) for v in (line.split('=')[1]).split()]
                         while not 'DAMP->' in line:
                             line = file.readline()
+                        self.fiber_materials[mat.number] = mat
                         
             elif 'LAYERED_BEAM_COMPONENTS' in line:
                 self.nLayeredBeamComponents = int(line.split()[1])
@@ -866,8 +935,9 @@ class zsoil_inp:
                     comp.creep_type = int(v[10])
                     comp.creep_A = float(v[11])
                     comp.creep_B = float(v[12])
-                    comp.ft_fun = file.readline()[:-1]
-                    comp.fc_fun = file.readline()[:-1]
+                    if comp.type==2:
+                        comp.ft_fun = file.readline()[:-1]
+                        comp.fc_fun = file.readline()[:-1]
                     self.layered_beam_components[comp.number] = comp
             elif 'EXIST_FUNC' in line:
                 if debug:
@@ -1196,8 +1266,9 @@ class zsoil_inp:
         f.close()
         of.close()
 
-    def write_vtu(self,filename,pathname='.',transform=False):
-        steps = self.get_all_steps()
+    def write_vtu(self,filename,pathname='.',steps=[],transform=False):
+        if len(steps)==0:
+            steps = self.get_all_steps()
 
         for kt in range(len(steps)):
             time = steps[kt]
@@ -1236,6 +1307,20 @@ class zsoil_inp:
                     vol_arrays[4].InsertNextTuple1(self.vol.rm2[ke])
             self.vtkVol.SetPoints(points)
             self.vtkVol.SetCells(vtk.VTK_HEXAHEDRON,volumics)
+            
+            for ke in range(self.nVolumics2D):
+                if self.exists(self.vol.EF[ke],time):
+                    anEle = vtk.vtkQuad()
+                    for kk in range(4):
+                        anEle.GetPointIds().SetId(kk,self.vol.inel[ke][kk]-1)
+                    volumics.InsertNextCell(anEle)
+                    vol_arrays[0].InsertNextTuple1(self.vol.mat[ke])
+                    vol_arrays[1].InsertNextTuple1(self.vol.EF[ke])
+                    vol_arrays[2].InsertNextTuple1(self.vol.LF[ke])
+                    vol_arrays[3].InsertNextTuple1(self.vol.rm1[ke])
+                    vol_arrays[4].InsertNextTuple1(self.vol.rm2[ke])
+            self.vtkVol.SetPoints(points)
+            self.vtkVol.SetCells(vtk.VTK_QUAD,volumics)
             
             data = self.vtkVol.GetCellData()
             for ka in range(5):
