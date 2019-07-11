@@ -76,6 +76,7 @@ class Material:
         self.name = str()
         self.type = str()
         self.cross_section = 0
+        self.parameters = dict()
 
 class ExistFun:
     def __init__(self):
@@ -263,8 +264,34 @@ class CrossSection:
                           7:'T-section'}
         self.dimensions = []
         self.values = []
-        
-        
+
+class ShellSection:
+    def __init__(self):
+        self.def_type = 0
+##        self.def_type_dict = {0:'Profiles',
+##                              1:'User',
+##                              2:'Values'}
+        self.name = ''
+        self.fibers = []
+        self.nFibers = []
+        self.thickness = 0
+        self.core_material = 0
+
+class ShellFiber:
+    def __init__(self):
+        self.number = 0
+        self.type = ''
+        self.type_dict = {0:'Core',
+                          1:'Reinforcement'}
+        self.area = 0
+        self.distance = 0
+        self.distance_from = 0
+        self.distance_from_dict = {0:'from top',
+                                   1:'from bottom',
+                                   2:'relative (-1,1)'}
+        self.material = 0
+        self.direction = 0
+
 class NodalMass:
     def __init__(self):
         self.node = 0
@@ -320,6 +347,7 @@ class zsoil_inp:
         self.nReinfMembers = 0
         self.nLayeredBeamComponents = 0
         self.nNodalMasses = 0
+        self.nFiberMaterials = 0
 
         self.coords = [[],[],[]]
         self.vol = ele_info()
@@ -332,6 +360,7 @@ class zsoil_inp:
         self.EFs = dict()
         self.LFs = dict()
         self.materials = dict()
+        self.fiber_materials = dict()
         self.layered_beam_components = dict()
         self.surfLoads = []
         self.nodalLoads = []
@@ -496,7 +525,10 @@ class zsoil_inp:
                         v = line.split()
                         self.beam.mat.append(int(v[0]))
                         self.beam.EF.append(int(v[3]))
-                        file.readline()
+                        line = file.readline()
+                        if int(line.split()[0])==1:
+                            file.readline()
+                            file.readline()
                         self.num_beams.append(int(v[0]))
             elif '.itg' in line and 'itg' in sections:
                 if debug:
@@ -849,13 +881,40 @@ class zsoil_inp:
                                     line = file.readline()
                                     sect.values = [float(v) for v in line.split()]
                                 mat.cross_section = sect
+                            elif 'GEOM->' in line and mat.type=='Shell Layered' and mat.buttons[6]==1:
+                                sect = ShellSection()
+                                v = line.split()
+                                sect.def_type = int(v[1])
+                                sect.nFibers = int(v[3])
+                                for kl in range(sect.nFibers):
+                                    fiber = ShellFiber()
+                                    fiber.number = kl+2
+                                    fiber.type = 1
+                                    fiber.area = float(v[4+kl*3])
+                                    fiber.distance = float(v[5+kl*3])
+                                    fiber.distance_from = int(v[6+kl*3])
+                                    sect.fibers.append(fiber)
+                                sect.core_material = int(v[4+sect.nFibers*3])
+                                for kl2 in range(sect.nFibers):
+                                    sect.fibers[kl2].material = int(v[5+sect.nFibers*3+kl2])
+                                mat.cross_section = sect
                             line = file.readline()
                         self.materials[mat.number] = mat
                 else:
                     self.nFiberMaterials = int(line.split('=')[1])
                     for km in range(self.nFiberMaterials):
+                        line = file.readline()
+                        mat = Material()
+                        mat.number = int(line.split()[2])
+                        line = file.readline()
+                        mat.type = line[:-1]
+                        line = file.readline()
+                        mat.name = line[:-1]
+                        line = file.readline()
+                        mat.buttons = [int(v) for v in (line.split('=')[1]).split()]
                         while not 'DAMP->' in line:
                             line = file.readline()
+                        self.fiber_materials[mat.number] = mat
                         
             elif 'LAYERED_BEAM_COMPONENTS' in line:
                 self.nLayeredBeamComponents = int(line.split()[1])
@@ -876,8 +935,9 @@ class zsoil_inp:
                     comp.creep_type = int(v[10])
                     comp.creep_A = float(v[11])
                     comp.creep_B = float(v[12])
-                    comp.ft_fun = file.readline()[:-1]
-                    comp.fc_fun = file.readline()[:-1]
+                    if comp.type==2:
+                        comp.ft_fun = file.readline()[:-1]
+                        comp.fc_fun = file.readline()[:-1]
                     self.layered_beam_components[comp.number] = comp
             elif 'EXIST_FUNC' in line:
                 if debug:

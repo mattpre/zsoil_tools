@@ -73,3 +73,9 @@ vtktools:
 v1.1.15
 zsoil_inp:
 - added support for 2D quads
+
+v1.1.16
+zsoil_inp:
+- reading layered shell material data
+zsoil_results:
+- added DAMAGE array in read_L02 (for nl shells)
