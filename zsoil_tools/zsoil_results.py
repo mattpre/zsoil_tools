@@ -57,7 +57,8 @@ class ele_info:
         self.EF = []
         self.LF = []
         self.ps = []    # property set after .eda file
-        self.loc_syst = []
+        self.loc_syst = [] # rotation matrix for projecting results into ref_vect3D
+        self.base = []
         self.type = []  # for contact: 0 for 2D, 1 for 3D, 2 for pile interface, 3 for tip interf.
         self.parent = []    # element number of beam or shell etc for contacts
         self.dir_nodes = [] # for beams, the numbers of nodes indicating local y-direction (2 per beam)
@@ -175,6 +176,10 @@ class property_set:
         self.EF = 0
 ##        self.EF_active = []
         self.LF = 0
+        self.group_labels = ['ELAS','GEOM','DENS','NONL','MAIN']
+        self.data = dict()
+        for gl in self.group_labels:
+            self.data[gl] = []
 
 class material:
     def __init__(self):
@@ -479,7 +484,8 @@ class zsoil_results:
                     lastpos = kl-1
                     line = lines[kl]
                     kl += 1
-                    while len(line)<2:
+                    group_header = line.split()[0]
+                    while len(line)<2:                        
                         line = lines[kl]
                         kl += 1
                     while not line[1]==' ':
@@ -488,6 +494,11 @@ class zsoil_results:
                             break
                         lastpos = kl-1
                         line = lines[kl]
+                        try:
+                            v = line.split()
+                            ps.data[group_header].extend([float(val) for val in v])
+                        except:
+                            group_header = line.split()[0]
                         kl += 1
                         while len(line)<2:
                             line = lines[kl]
@@ -1080,6 +1091,7 @@ class zsoil_results:
             sina = numpy.inner(e2,vp)/vpn
             
             self.shell.loc_syst.append(numpy.matrix([[cosa,-sina],[sina,cosa]]))
+            self.shell.base.append([e1,e2,e3])
         
         if '/v+' in arg:
             verbose = False

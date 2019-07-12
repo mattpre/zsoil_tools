@@ -79,3 +79,4 @@ zsoil_inp:
 - reading layered shell material data
 zsoil_results:
 - added DAMAGE array in read_L02 (for nl shells)
+- added reading of (certain) material data from dat-file
