@@ -553,10 +553,33 @@ def get_section(mesh,plane,origin=0,loc_syst=[],matlist=[],EFlist=[],LFlist=[],t
 def get_section_vol(mesh,plane,loc_syst,celldata=False,
                     array='DISP_TRA',component=-1,mesh0=0,
                     matlist=[],EFlist=[],LFlist=[]):
-    
-    cut = vtk.vtkCutter()
-    cut.SetInputData(mesh)
-    cut.SetCutFunction(plane)
+
+    if plane.GetClassName()=='vtkPolyPlane':
+        clip = vtk.vtkExtractGeometry()
+        clip.SetInputData(mesh)
+        bbox = [0,0,0,0,0,0]
+        polyline = plane.GetPolyLine()
+        polyline.GetBounds(bbox)
+        cyl = vtk.vtkCylinder()
+        c0 = [0.5*(bbox[kk*2]+bbox[kk*2+1]) for kk in range(3)]
+        p0 = polyline.GetPoints().GetPoint(0)
+        cyl.SetRadius(((c0[0]-p0[0])**2+
+                       (c0[1]-p0[1])**2+
+                       (c0[2]-p0[2])**2)**0.5)
+        cyl.SetCenter(c0)
+##        cyl.SetAxis(0,1,0)
+        clip.SetImplicitFunction(cyl)
+        clip.ExtractInsideOn()
+        clip.ExtractBoundaryCellsOn()
+        clip.Update()
+        cout = clip.GetOutput()
+        cut = vtk.vtkCutter()
+        cut.SetInputData(cout)
+        cut.SetCutFunction(plane)
+    else:
+        cut = vtk.vtkCutter()
+        cut.SetInputData(mesh)
+        cut.SetCutFunction(plane)
     cut.Update()
     
     if celldata:
@@ -594,24 +617,35 @@ def get_section_vol(mesh,plane,loc_syst,celldata=False,
     inel = []
     crd = [[],[]]
 
-    orig = plane.GetOrigin()
-    if mesh0:
-        print 'here'
-##        cut0 = vtk.vtkCutter()
-##        cut0.SetInputConnection(mesh0)
-##        cut0.SetCutFunction(plane)
-##        cut0.Update()
-##        output0 = cut0.GetOutput()
-##        pdata0 = output0.GetPointData()
-##        anArray0 = pdata0.GetArray('DISP_TRA')
-##        
-##        for kp in range(output.GetNumberOfPoints()):
-##            p = output.GetPoint(kp)
+    if plane.GetClassName()=='vtkPolyPlane':
+        polyline = plane.GetPolyLine()
+##        orig = polyline.GetPoints().GetPoint(0)
+        for kp in range(output.GetNumberOfPoints()):
+            pp0 = output.GetPoint(kp)
+            p = (pp0[0],-pp0[2],0)
+            xpcoord = 0
+            for kl in range(polyline.GetNumberOfPoints()-1):
+                line = vtk.vtkLine()
+                p0 = polyline.GetPoints().GetPoint(kl)
+                p1 = polyline.GetPoints().GetPoint(kl+1)
+                length = ((p0[0]-p1[0])**2+(p0[1]-p1[1])**2)**0.5
+                t = vtk.mutable(0)
+                tt = [0,0,0]
+                d = line.DistanceToLine(p,p0,p1,t,tt)
+                if t>-1e-6 and t<1+1e-6 and d<1e-6:
+                    xpcoord += t*length
+                    break
+                xpcoord += length
 ##            crd_2D = project_on_plane(loc_syst,orig,p)
-##            crd[0].append(crd_2D[0])
-##            crd[1].append(crd_2D[1])
-##            val.append(anArray.GetTuple(kp)[component]*1000-anArray0.GetTuple(kp)[component]*1000)
+            crd[0].append(xpcoord)
+            crd[1].append(pp0[1])
+            if component==-1:
+                val.append(anArray.GetTuple(kp))
+            else:
+                val.append(anArray.GetTuple(kp)[component])
     else:
+        orig = plane.GetOrigin()
+        
         for kp in range(output.GetNumberOfPoints()):
             p = output.GetPoint(kp)
             crd_2D = project_on_plane(loc_syst,orig,p)
@@ -621,6 +655,23 @@ def get_section_vol(mesh,plane,loc_syst,celldata=False,
                 val.append(anArray.GetTuple(kp))
             else:
                 val.append(anArray.GetTuple(kp)[component])
+##    if mesh0:
+##        print 'here'
+####        cut0 = vtk.vtkCutter()
+####        cut0.SetInputConnection(mesh0)
+####        cut0.SetCutFunction(plane)
+####        cut0.Update()
+####        output0 = cut0.GetOutput()
+####        pdata0 = output0.GetPointData()
+####        anArray0 = pdata0.GetArray('DISP_TRA')
+####        
+####        for kp in range(output.GetNumberOfPoints()):
+####            p = output.GetPoint(kp)
+####            crd_2D = project_on_plane(loc_syst,orig,p)
+####            crd[0].append(crd_2D[0])
+####            crd[1].append(crd_2D[1])
+####            val.append(anArray.GetTuple(kp)[component]*1000-anArray0.GetTuple(kp)[component]*1000)
+##    else:
 
     for kp in range(output.GetNumberOfPolys()):
         p = output.GetCell(kp)
@@ -628,38 +679,6 @@ def get_section_vol(mesh,plane,loc_syst,celldata=False,
             inel.append([p.GetPointId(kk) for kk in range(3)])
 
     return val,crd,output
-
-class locator:
-    def __init__(self,pd,val,loc_syst,orig):
-        self.loc = vtk.vtkCellLocator()
-        self.loc = vtk.vtkModifiedBSPTree()
-        self.pd2 = vtk.vtkPolyData()
-        self.pd2.DeepCopy(pd)
-        
-        pts = vtk.vtkPoints()
-        for kp in range(pd.GetNumberOfPoints()):
-            p = pd.GetPoint(kp)
-            crd_2D = project_on_plane(loc_syst,orig,p)
-            pts.InsertNextPoint(crd_2D[0],crd_2D[1],0)
-        self.pd2.SetPoints(pts)
-        self.loc.SetDataSet(self.pd2)
-        self.loc.BuildLocator()
-        self.values = val
-        
-
-    def interpolate(self,x,y,z):
-        aCell = vtk.vtkTriangle()
-        pcoords = [0,0,0]
-        weights = [0,0,0]
-        
-        cid = self.loc.FindCell((x,y,z))
-        if cid>-1:
-            aCell = self.pd2.GetCell(cid)
-            pts = [(aCell.GetPoints().GetPoint(k)[0],
-                    aCell.GetPoints().GetPoint(k)[1]) for k in range(3)]
-            res = aCell.BarycentricCoords((x,y),pts[0],pts[1],pts[2],pcoords)
-            v = [self.values[aCell.GetPointId(k)] for k in range(3)]
-            return sum([pcoords[kk]*v[kk] for kk in range(3)])
         
 from matplotlib.patches import Polygon
 def get_patches(output,loc_syst,orig,array='mat'):

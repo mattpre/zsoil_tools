@@ -7,7 +7,8 @@
 ##                                                     ##
 #########################################################
 
-import numpy,os,math,cmath
+import numpy as np
+import os,math,cmath
 import matplotlib.pyplot as plt
 import vtk
 
@@ -437,9 +438,30 @@ def write_vtu_diff(res,step0,step1,name,verbose=True,
         
 
 def project_on_plane(base,origin,pt):
-    x1 = numpy.dot(base[0],[pt[k]-origin[k] for k in range(3)])
-    x2 = numpy.dot(base[1],[pt[k]-origin[k] for k in range(3)])
+    x1 = np.dot(base[0],[pt[k]-origin[k] for k in range(3)])
+    x2 = np.dot(base[1],[pt[k]-origin[k] for k in range(3)])
     return (x1,x2)
+
+def project_on_polyplane(polyplane,p):
+    polyline = polyplane.GetPolyLine()
+
+    xpcoord = 0
+    for kl in range(polyline.GetNumberOfPoints()-1):
+        line = vtk.vtkLine()
+        p0 = polyline.GetPoints().GetPoint(kl)
+        p1 = polyline.GetPoints().GetPoint(kl+1)
+        length = ((p0[0]-p1[0])**2+(p0[1]-p1[1])**2+(p0[2]-p1[2])**2)**0.5
+        t = vtk.mutable(0)
+        tt = [0,0,0]
+        d = line.DistanceToLine((p[0],-p[2],0),p0,p1,t,tt)
+##        if t>-1e-6 and t<1+1e-6 and d<1e-6:
+        if d<1e-6:
+            xpcoord += t*length
+##            print(p,p0,p1,t)
+            break
+        xpcoord += length
+
+    return (xpcoord,p[1])
 
 def get_polylines(segments0):
     # first find separate polylines:
@@ -476,9 +498,9 @@ def get_section(mesh,plane,origin=0,loc_syst=0,matlist=[],EFlist=[],LFlist=[]):
     if loc_syst==0:
         normal = plane.GetNormal()
         if not abs(normal[1]-1)<1e-6:
-            base = numpy.array([numpy.cross(normal,(0,1,0)),(0,1,0)])
+            base = np.array([np.cross(normal,(0,1,0)),(0,1,0)])
         else:
-            base = numpy.array([numpy.cross(normal,(1,0,0)),(1,0,0)])
+            base = np.array([np.cross(normal,(1,0,0)),(1,0,0)])
 
     cutEdges = vtk.vtkCutter()
     cutEdges.SetInputConnection(mesh)
@@ -563,122 +585,17 @@ def get_section(mesh,plane,origin=0,loc_syst=0,matlist=[],EFlist=[],LFlist=[]):
         
     return segments
 
-def get_section_vol(mesh,plane,loc_syst,celldata=False,
-                    array='DISP_TRA',component=0,mesh0=0,
-                    matlist=[],EFlist=[],LFlist=[]):
-    
-    cut = vtk.vtkCutter()
-    cut.SetInputConnection(mesh)
-    cut.SetCutFunction(plane)
-    cut.Update()
-    
-    if celldata:
-        output0 = cut.GetOutput()
-        cdata = output0.GetCellData()
-        mat = cdata.GetArray('mat')
-        EF = cdata.GetArray('EF')
-        LF = cdata.GetArray('LF')
-        extract = vtk.vtkExtractCells()
-        extract.SetInputData(output0)
-        eleList = vtk.vtkIdList()
-        for ke in range(output0.GetNumberOfCells()):
-            if len(matlist)==0 or mat.GetTuple1(ke) in matlist:
-                if len(EFlist)==0 or EF.GetTuple1(ke) in EFlist:
-                    if len(LFlist)==0 or LF.GetTuple1(ke) in LFlist:
-                        a=eleList.InsertNextId(ke)
-        extract.SetCellList(eleList)
-        output1 = extract.GetOutputPort()
-        geom = vtk.vtkGeometryFilter()
-        geom.SetInputConnection(output1)
-        geom.Update()
-        output = geom.GetOutput()
-        
-        c2p = vtk.vtkCellDataToPointData()
-        c2p.SetInputData(output)
-        c2p.Update()
-        pdata = c2p.GetOutput().GetPointData()
+def contourf(ax,val,crd,output,loc_syst=None,orig=None,polyplane=None,levels=0):
+    if polyplane:
+        loc = locator(output,val,None,None,polyplane)
     else:
-        output = cut.GetOutput()
-        pdata = output.GetPointData()
-    anArray = pdata.GetArray(array)
-    if anArray is None:
-        print 'Array '+array+' is not found.'
-    val = []
-    inel = []
-    crd = [[],[]]
-
-    orig = plane.GetOrigin()
-    if mesh0:
-        print 'here'
-##        cut0 = vtk.vtkCutter()
-##        cut0.SetInputConnection(mesh0)
-##        cut0.SetCutFunction(plane)
-##        cut0.Update()
-##        output0 = cut0.GetOutput()
-##        pdata0 = output0.GetPointData()
-##        anArray0 = pdata0.GetArray('DISP_TRA')
-##        
-##        for kp in range(output.GetNumberOfPoints()):
-##            p = output.GetPoint(kp)
-##            crd_2D = project_on_plane(loc_syst,orig,p)
-##            crd[0].append(crd_2D[0])
-##            crd[1].append(crd_2D[1])
-##            val.append(anArray.GetTuple(kp)[component]*1000-anArray0.GetTuple(kp)[component]*1000)
-    else:
-        for kp in range(output.GetNumberOfPoints()):
-            p = output.GetPoint(kp)
-            crd_2D = project_on_plane(loc_syst,orig,p)
-            crd[0].append(crd_2D[0])
-            crd[1].append(crd_2D[1])
-            val.append(anArray.GetTuple(kp)[component])
-
-    for kp in range(output.GetNumberOfPolys()):
-        p = output.GetCell(kp)
-        if p.GetNumberOfPoints()==3:
-            inel.append([p.GetPointId(kk) for kk in range(3)])
-
-    return val,crd,output
-
-class locator:
-    def __init__(self,pd,val,loc_syst,orig):
-        self.loc = vtk.vtkCellLocator()
-        self.loc = vtk.vtkModifiedBSPTree()
-        self.pd2 = vtk.vtkPolyData()
-        self.pd2.DeepCopy(pd)
-        
-        pts = vtk.vtkPoints()
-        for kp in range(pd.GetNumberOfPoints()):
-            p = pd.GetPoint(kp)
-            crd_2D = project_on_plane(loc_syst,orig,p)
-            pts.InsertNextPoint(crd_2D[0],crd_2D[1],0)
-        self.pd2.SetPoints(pts)
-        self.loc.SetDataSet(self.pd2)
-        self.loc.BuildLocator()
-        self.values = val
-        
-
-    def interpolate(self,x,y,z):
-        aCell = vtk.vtkTriangle()
-        pcoords = [0,0,0]
-        weights = [0,0,0]
-        
-        cid = self.loc.FindCell((x,y,z))
-        if cid>-1:
-            aCell = self.pd2.GetCell(cid)
-            pts = [(aCell.GetPoints().GetPoint(k)[0],
-                    aCell.GetPoints().GetPoint(k)[1]) for k in range(3)]
-            res = aCell.BarycentricCoords((x,y),pts[0],pts[1],pts[2],pcoords)
-            v = [self.values[aCell.GetPointId(k)] for k in range(3)]
-            return sum([pcoords[kk]*v[kk] for kk in range(3)])
-        
-def contourf(val,crd,output,loc_syst,orig,ax,levels=0):
-    loc = locator(output,val,loc_syst,orig)
+        loc = locator(output,val,loc_syst,orig)
 
     # contour data:
     bounds = [[min(crd[0])-2,max(crd[0])+2],
               [min(crd[1])-2,max(crd[1])+2]]
-    xnew = np.arange(bounds[0][0],bounds[0][1],1)
-    znew = np.arange(bounds[1][0],bounds[1][1],1)
+    xnew = np.linspace(bounds[0][0],bounds[0][1],100)
+    znew = np.linspace(bounds[1][0],bounds[1][1],100)
     X,Z = np.meshgrid(xnew,znew)
     V = np.zeros([len(X),len(X[0])])
     val1 = []
@@ -687,6 +604,8 @@ def contourf(val,crd,output,loc_syst,orig,ax,levels=0):
             V[kz][kx] = loc.interpolate(X[kz][kx],Z[kz][kx],0)
             if not np.isnan(V[kz][kx]):
                 val1.append(V[kz][kx])
+##            else:
+##                val1.append(0)
     try:
         if levels==0:
             levels = np.linspace(min(val1),max(val1),10)
@@ -707,14 +626,14 @@ def get_patches(output,loc_syst,orig,array='mat'):
         cell = output.GetCell(kc)
         Ids = cell.GetPointIds()
         val = anArray.GetValue(kc)
-        xy = numpy.zeros(3*2)
+        xy = np.zeros(3*2)
         xy.shape = (3,2)
         for k in range(3):
             pt = points.GetPoint(Ids.GetId(k))
             crd_2D = project_on_plane(loc_syst,orig,pt)
             xy[k][0] = crd_2D[0]
             xy[k][1] = crd_2D[1]
-        poly = Polygon(numpy.array(xy))
+        poly = Polygon(np.array(xy))
         patches.append(poly)
         cvect.append(val)
 ##        LIM[0][0] = min(LIM[0][0],x[kpt])
@@ -723,6 +642,42 @@ def get_patches(output,loc_syst,orig,array='mat'):
 ##        LIM[0][1] = max(LIM[0][1],x[kpt])
 
     return patches,cvect
+
+class locator:
+    def __init__(self,pd,val,loc_syst=None,orig=None,polyplane=None):
+        self.loc = vtk.vtkCellLocator()
+        self.loc = vtk.vtkModifiedBSPTree()
+        self.pd2 = vtk.vtkPolyData()
+        self.pd2.DeepCopy(pd)
+        
+        pts = vtk.vtkPoints()
+        for kp in range(pd.GetNumberOfPoints()):
+            p = pd.GetPoint(kp)
+##            print(p)
+            if polyplane:
+                crd_2D = project_on_polyplane(polyplane,p)
+            else:
+                crd_2D = project_on_plane(loc_syst,orig,p)
+##            print(crd_2D)
+            pts.InsertNextPoint(crd_2D[0],crd_2D[1],0)
+        self.pd2.SetPoints(pts)
+        self.loc.SetDataSet(self.pd2)
+        self.loc.BuildLocator()
+        self.values = val        
+
+    def interpolate(self,x,y,z):
+        aCell = vtk.vtkTriangle()
+        pcoords = [0,0,0]
+        weights = [0,0,0]
+        
+        cid = self.loc.FindCell((x,y,z))
+        if cid>-1:
+            aCell = self.pd2.GetCell(cid)
+            pts = [(aCell.GetPoints().GetPoint(k)[0],
+                    aCell.GetPoints().GetPoint(k)[1]) for k in range(3)]
+            res = aCell.BarycentricCoords((x,y),pts[0],pts[1],pts[2],pcoords)
+            v = [self.values[aCell.GetPointId(k)] for k in range(3)]
+            return sum([pcoords[kk]*v[kk] for kk in range(3)])
 
 def extract_interfaces(output,array='mat'):
     # - find exterior edges for all int domains
@@ -946,7 +901,7 @@ class pl_view:
         ax1 = plt.subplot(gs[1])
         col = [[v/255. for v in vv] for vv in self.colors]
         cmap = colors.ListedColormap(col)
-        ticks = numpy.linspace(vrange[0],vrange[1],11)
+        ticks = np.linspace(vrange[0],vrange[1],11)
         norm = mpl.colors.Normalize(vmin=min(ticks), vmax=max(ticks))
         cb = mpl.colorbar.ColorbarBase(ax1,cmap=cmap,norm=norm,boundaries=ticks)
         cb.set_ticks(ticks)
