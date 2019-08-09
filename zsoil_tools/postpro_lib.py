@@ -585,11 +585,8 @@ def get_section(mesh,plane,origin=0,loc_syst=0,matlist=[],EFlist=[],LFlist=[]):
         
     return segments
 
-def contourf(ax,val,crd,output,loc_syst=None,orig=None,polyplane=None,levels=0):
-    if polyplane:
-        loc = locator(output,val,None,None,polyplane)
-    else:
-        loc = locator(output,val,loc_syst,orig)
+def contourf(ax,val,crd,output,loc_syst,orig,levels=0):
+    loc = locator(output,val,loc_syst,orig)
 
     # contour data:
     bounds = [[min(crd[0])-2,max(crd[0])+2],
@@ -602,6 +599,39 @@ def contourf(ax,val,crd,output,loc_syst=None,orig=None,polyplane=None,levels=0):
     for kx in range(len(X[0])):
         for kz in range(len(X)):
             V[kz][kx] = loc.interpolate(X[kz][kx],Z[kz][kx],0)
+            if not np.isnan(V[kz][kx]):
+                val1.append(V[kz][kx])
+##            else:
+##                val1.append(0)
+    try:
+        if levels==0:
+            levels = np.linspace(min(val1),max(val1),10)
+    except:
+        pass
+    CS = ax.contourf(X,Z,V,levels,extend='both')
+
+    return CS
+
+def contourf_curved_section(ax,val,crd,output,levels=0):
+    loc = locator_curved(output,val)
+
+    # contour data:
+    bounds = [[min(crd[0]),max(crd[0])],
+              [min(crd[1]),max(crd[1])]]
+    arr_crd_2d = output.GetPointData().GetArray('2Dcrds')
+    xy = [[arr_crd_2d.GetTuple(kk)[0] for kk in range(arr_crd_2d.GetNumberOfTuples())],
+          [arr_crd_2d.GetTuple(kk)[1] for kk in range(arr_crd_2d.GetNumberOfTuples())]]
+    bounds = [[min(xy[0]),max(xy[0])],
+              [min(xy[1]),max(xy[1])]]
+    xnew = np.linspace(bounds[0][0],bounds[0][1],100)
+    znew = np.linspace(bounds[1][0],bounds[1][1],100)
+    X,Z = np.meshgrid(xnew,znew)
+    V = np.zeros([len(X),len(X[0])])
+    val1 = []
+    for kx in range(len(X[0])):
+        for kz in range(len(X)):
+            V[kz][kx] = loc.interpolate(X[kz][kx],Z[kz][kx],0)
+##            print(X[kz][kx],Z[kz][kx],V[kz][kx])
             if not np.isnan(V[kz][kx]):
                 val1.append(V[kz][kx])
 ##            else:
@@ -644,7 +674,7 @@ def get_patches(output,loc_syst,orig,array='mat'):
     return patches,cvect
 
 class locator:
-    def __init__(self,pd,val,loc_syst=None,orig=None,polyplane=None):
+    def __init__(self,pd,val,loc_syst,orig):
         self.loc = vtk.vtkCellLocator()
         self.loc = vtk.vtkModifiedBSPTree()
         self.pd2 = vtk.vtkPolyData()
@@ -653,12 +683,7 @@ class locator:
         pts = vtk.vtkPoints()
         for kp in range(pd.GetNumberOfPoints()):
             p = pd.GetPoint(kp)
-##            print(p)
-            if polyplane:
-                crd_2D = project_on_polyplane(polyplane,p)
-            else:
-                crd_2D = project_on_plane(loc_syst,orig,p)
-##            print(crd_2D)
+            crd_2D = project_on_plane(loc_syst,orig,p)
             pts.InsertNextPoint(crd_2D[0],crd_2D[1],0)
         self.pd2.SetPoints(pts)
         self.loc.SetDataSet(self.pd2)
@@ -678,6 +703,46 @@ class locator:
             res = aCell.BarycentricCoords((x,y),pts[0],pts[1],pts[2],pcoords)
             v = [self.values[aCell.GetPointId(k)] for k in range(3)]
             return sum([pcoords[kk]*v[kk] for kk in range(3)])
+
+class locator_curved:
+    def __init__(self,pd,val):
+        self.loc = vtk.vtkCellLocator()
+        self.loc = vtk.vtkModifiedBSPTree()
+        
+        arr_crd_2d = pd.GetPointData().GetArray('2Dcrds')
+        
+        pts = vtk.vtkPoints()
+        for kp in range(pd.GetNumberOfPoints()):
+            p = pd.GetPoint(kp)
+            crd_2D = arr_crd_2d.GetTuple(kp)
+            pts.InsertNextPoint(crd_2D[0],crd_2D[1],0)
+        pd.SetPoints(pts)
+
+        del2d = vtk.vtkDelaunay2D()
+        del2d.SetInputData(pd)
+        del2d.SetTolerance(0)
+        del2d.Update()
+        self.pd2 = del2d.GetOutput()
+        
+        self.loc.SetDataSet(self.pd2)
+        self.loc.BuildLocator()
+        self.values = val        
+
+    def interpolate(self,x,y,z):
+        aCell = vtk.vtkTriangle()
+        pcoords = [0,0,0]
+        weights = [0,0,0]
+        
+        cid = self.loc.FindCell((x,y,z))
+        if cid>-1:
+            aCell = self.pd2.GetCell(cid)
+            pts = [(aCell.GetPoints().GetPoint(k)[0],
+                    aCell.GetPoints().GetPoint(k)[1]) for k in range(3)]
+            res = aCell.BarycentricCoords((x,y),pts[0],pts[1],pts[2],pcoords)
+            v = [self.values[aCell.GetPointId(k)] for k in range(3)]
+            return sum([pcoords[kk]*v[kk] for kk in range(3)])
+##        else:
+##            return 0
 
 def extract_interfaces(output,array='mat'):
     # - find exterior edges for all int domains
