@@ -553,7 +553,7 @@ def get_section(mesh,plane,origin=0,loc_syst=[],matlist=[],EFlist=[],LFlist=[],t
 def get_section_vol(mesh,plane,loc_syst,celldata=False,
                     array='DISP_TRA',component=-1,mesh0=0,
                     matlist=[],EFlist=[],LFlist=[]):
-    
+
     cut = vtk.vtkCutter()
     cut.SetInputData(mesh)
     cut.SetCutFunction(plane)
@@ -594,33 +594,18 @@ def get_section_vol(mesh,plane,loc_syst,celldata=False,
     inel = []
     crd = [[],[]]
 
+
     orig = plane.GetOrigin()
-    if mesh0:
-        print 'here'
-##        cut0 = vtk.vtkCutter()
-##        cut0.SetInputConnection(mesh0)
-##        cut0.SetCutFunction(plane)
-##        cut0.Update()
-##        output0 = cut0.GetOutput()
-##        pdata0 = output0.GetPointData()
-##        anArray0 = pdata0.GetArray('DISP_TRA')
-##        
-##        for kp in range(output.GetNumberOfPoints()):
-##            p = output.GetPoint(kp)
-##            crd_2D = project_on_plane(loc_syst,orig,p)
-##            crd[0].append(crd_2D[0])
-##            crd[1].append(crd_2D[1])
-##            val.append(anArray.GetTuple(kp)[component]*1000-anArray0.GetTuple(kp)[component]*1000)
-    else:
-        for kp in range(output.GetNumberOfPoints()):
-            p = output.GetPoint(kp)
-            crd_2D = project_on_plane(loc_syst,orig,p)
-            crd[0].append(crd_2D[0])
-            crd[1].append(crd_2D[1])
-            if component==-1:
-                val.append(anArray.GetTuple(kp))
-            else:
-                val.append(anArray.GetTuple(kp)[component])
+    
+    for kp in range(output.GetNumberOfPoints()):
+        p = output.GetPoint(kp)
+        crd_2D = project_on_plane(loc_syst,orig,p)
+        crd[0].append(crd_2D[0])
+        crd[1].append(crd_2D[1])
+        if component==-1:
+            val.append(anArray.GetTuple(kp))
+        else:
+            val.append(anArray.GetTuple(kp)[component])
 
     for kp in range(output.GetNumberOfPolys()):
         p = output.GetCell(kp)
@@ -629,37 +614,117 @@ def get_section_vol(mesh,plane,loc_syst,celldata=False,
 
     return val,crd,output
 
-class locator:
-    def __init__(self,pd,val,loc_syst,orig):
-        self.loc = vtk.vtkCellLocator()
-        self.loc = vtk.vtkModifiedBSPTree()
-        self.pd2 = vtk.vtkPolyData()
-        self.pd2.DeepCopy(pd)
-        
-        pts = vtk.vtkPoints()
-        for kp in range(pd.GetNumberOfPoints()):
-            p = pd.GetPoint(kp)
-            crd_2D = project_on_plane(loc_syst,orig,p)
-            pts.InsertNextPoint(crd_2D[0],crd_2D[1],0)
-        self.pd2.SetPoints(pts)
-        self.loc.SetDataSet(self.pd2)
-        self.loc.BuildLocator()
-        self.values = val
-        
+def get_curved_section_vol(mesh,polyline,dx,direction=np.array([0,1,0]),celldata=False,
+                           array='DISP_TRA',component=-1,mesh0=0,
+                           matlist=[],EFlist=[],LFlist=[]):
 
-    def interpolate(self,x,y,z):
-        aCell = vtk.vtkTriangle()
-        pcoords = [0,0,0]
-        weights = [0,0,0]
-        
-        cid = self.loc.FindCell((x,y,z))
-        if cid>-1:
-            aCell = self.pd2.GetCell(cid)
-            pts = [(aCell.GetPoints().GetPoint(k)[0],
-                    aCell.GetPoints().GetPoint(k)[1]) for k in range(3)]
-            res = aCell.BarycentricCoords((x,y),pts[0],pts[1],pts[2],pcoords)
-            v = [self.values[aCell.GetPointId(k)] for k in range(3)]
-            return sum([pcoords[kk]*v[kk] for kk in range(3)])
+    locator = vtk.vtkCellLocator()
+    locator.SetDataSet(mesh)
+    locator.BuildLocator()
+
+    if celldata:
+        print('celldata not implemented!')
+    else:
+        volarr = mesh.GetPointData().GetArray(array)
+    linearr = vtk.vtkFloatArray()
+    linearr.SetName(array)
+    linearr.SetNumberOfComponents(volarr.GetNumberOfComponents())
+    crd_2d = vtk.vtkFloatArray()
+    crd_2d.SetName('2Dcrds')
+    crd_2d.SetNumberOfComponents(2)
+    
+    bounds = mesh.GetBounds()
+    # right now only works for vertical raycasting!
+    if abs(direction[1]-1)<1e-6:
+        minmax = [bounds[2],bounds[3]]
+
+    output = vtk.vtkPolyData()
+    lines = vtk.vtkCellArray()
+    points = vtk.vtkPoints()
+    unique = vtk.vtkPointLocator()
+    unique.InitPointInsertion(points,bounds)
+
+    linepts = []
+    for kp in range(polyline.GetNumberOfPoints()-1):
+        p0 = np.array(polyline.GetPoints().GetPoint(kp))
+        p1 = np.array(polyline.GetPoints().GetPoint(kp+1))
+        length = np.linalg.norm(p1-p0)
+        nP = int(np.ceil(length/float(dx)))
+        for kkp in range(nP):
+            linepts.append(p0+kkp*(p1-p0)/nP)
+    linepts.append(p1)
+
+    x2d = 0
+    for kp in range(len(linepts)):
+        p = linepts[kp]
+        if kp>0:
+            x2d += np.linalg.norm(p-linepts[kp-1])
+        ids = vtk.vtkIdList()
+        ind = locator.FindCellsAlongLine([p[0],minmax[1],p[2]],
+                                         [p[0],minmax[0],p[2]],0.001,ids)
+
+        for ke in range(ids.GetNumberOfIds()):
+            cell = mesh.GetCell(ids.GetId(ke))
+            line = vtk.vtkLine()
+            n = 0
+            for kf in range(cell.GetNumberOfFaces()):
+                face = cell.GetFace(kf)
+                t = vtk.mutable(0)
+                x = [0,0,0]
+                pcrd = [0,0,0]
+                subId = vtk.mutable(0)
+                ind = face.IntersectWithLine([p[0],minmax[1],p[2]],
+                                             [p[0],minmax[0],p[2]],0.001,t,x,pcrd,subId)
+                if ind:
+                    ind = vtk.mutable(0)
+                    isnew = unique.InsertUniquePoint(x,ind)                        
+                    line.GetPointIds().SetId(n,ind)
+                    if isnew:
+                        cp = [0,0,0]
+                        subId = vtk.mutable(0)
+                        pcrd = [0,0,0]
+                        dist2 = vtk.mutable(0)
+                        weights = [0,0,0,0]
+                        face.EvaluatePosition(x,cp,subId,pcrd,dist2,weights)
+                        tups = [volarr.GetTuple(face.GetPointId(kk)) for kk in range(4)]
+                        linearr.InsertNextTuple3(sum([tups[kk][0]*weights[kk] for kk in range(4)]),
+                                                 sum([tups[kk][1]*weights[kk] for kk in range(4)]),
+                                                 sum([tups[kk][2]*weights[kk] for kk in range(4)]))
+                        crd_2d.InsertNextTuple2(x2d,x[1])
+                    if n==1:
+                        lines.InsertNextCell(line)
+                    elif n>1:
+                        print('Intersection with %i points'%(n))
+                    n += 1
+
+    output.SetPolys(lines)
+    output.SetPoints(unique.GetPoints())
+    output.GetPointData().AddArray(linearr)
+    output.GetPointData().AddArray(crd_2d)
+##    w = vtk.vtkXMLPolyDataWriter()
+##    w.SetFileName('lines.vtp')
+##    w.SetInputData(output)
+##    w.Write()
+    
+    pdata = output.GetPointData()
+
+    anArray = pdata.GetArray(array)
+    if anArray is None:
+        print 'Array '+array+' is not found.'
+    val = []
+    crd = [[],[]]
+
+    
+    for kp in range(output.GetNumberOfPoints()):
+        p = output.GetPoint(kp)
+        crd[0].append(crd_2d.GetTuple2(kp)[0])
+        crd[1].append(crd_2d.GetTuple2(kp)[1])
+        if component==-1:
+            val.append(anArray.GetTuple(kp))
+        else:
+            val.append(anArray.GetTuple(kp)[component])
+
+    return val,crd,output
         
 from matplotlib.patches import Polygon
 def get_patches(output,loc_syst,orig,array='mat'):

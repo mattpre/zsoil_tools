@@ -494,6 +494,9 @@ class zsoil_results:
                             break
                         lastpos = kl-1
                         line = lines[kl]
+                        while len(line)<2:
+                            line = lines[kl]
+                            kl += 1
                         try:
                             v = line.split()
                             ps.data[group_header].extend([float(val) for val in v])
