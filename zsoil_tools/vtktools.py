@@ -614,7 +614,7 @@ def get_section_vol(mesh,plane,loc_syst,celldata=False,
 
     return val,crd,output
 
-def get_curved_section_vol(mesh,polyline,dx,direction=np.array([0,1,0]),celldata=False,
+def get_curved_section_vol(mesh,polyline,ylim,dx,direction=np.array([0,1,0]),celldata=False,
                            array='DISP_TRA',component=-1,mesh0=0,
                            matlist=[],EFlist=[],LFlist=[]):
 
@@ -637,6 +637,7 @@ def get_curved_section_vol(mesh,polyline,dx,direction=np.array([0,1,0]),celldata
     # right now only works for vertical raycasting!
     if abs(direction[1]-1)<1e-6:
         minmax = [bounds[2],bounds[3]]
+    minmax = ylim
 
     output = vtk.vtkPolyData()
     lines = vtk.vtkCellArray()
