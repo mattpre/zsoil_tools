@@ -86,3 +86,9 @@ vtktools:
 get_curved_section_vol
 postpro_lib:
 locator_curved etc
+
+v1.1.19
+zsoil_results:
+SHQ4 are also shells
+zsoil_inp:
+SHQ4 are also shells

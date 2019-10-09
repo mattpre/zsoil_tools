@@ -298,6 +298,12 @@ class NodalMass:
         self.mass = 0
         self.name = str()
 
+class FaceGroup: # for mesh tying
+    def __init__(self):
+        self.name = str()
+        self.nFaces = 0
+        self.element_faces = []
+
 class zsoil_inp:
     """Main data structure
     """
@@ -318,6 +324,7 @@ class zsoil_inp:
         self.nContacts = 0
         self.nBeams = 0
         self.nShells = 0
+        self.nThickShells = 0
         self.nTrusses = 0
         self.num_volumics = []
         self.num_shells = []
@@ -330,11 +337,13 @@ class zsoil_inp:
         self.nPlines = 0
         self.nArcs = 0
         self.nSurfaces = []
+        self.nFaceGroups = []
         self.ptcrds = [[],[],[]]
         self.line = []
         self.arc = []
         self.pline = []
         self.surfaces = []
+        self.face_groups = []
         
         self.nBCs = 0
         self.nSurfaceLoads = 0
@@ -354,6 +363,7 @@ class zsoil_inp:
         self.cnt = ele_info()
         self.beam = ele_info()
         self.shell = ele_info()
+        self.thickshell = ele_info()
         self.truss = ele_info()
 
         self.BCs = [[],[],[]]
@@ -407,9 +417,11 @@ class zsoil_inp:
         self.nMaterials = int(line.split()[2])
         self.nEF = int(line.split()[3]) # not correct in v16.03
         self.nLF = int(line.split()[4]) # not correct in v16.03
+        self.nThickShells = int(line.split()[24])
+        self.nShells += self.nThickShells
         line = file.readline()
         self.nContacts = int(line.split()[1])
-        self.nShells = int(line.split()[14])
+        self.nShells += int(line.split()[14])
         self.nBeams = int(line.split()[8])
         self.nBeamLoads = int(line.split()[8])
         self.nNodalMasses = int(line.split()[23])
@@ -556,7 +568,7 @@ class zsoil_inp:
                     print 'reading ilg'
                 for ke in range(self.nShells):
                     line = file.readline()
-                    if 'SXQ4' in line:
+                    if 'SXQ4' in line or 'SHQ4' in line:
                         v = line.split()
                         inel = []
                         if v[2]=='SXQ4':
@@ -568,6 +580,15 @@ class zsoil_inp:
                                 center[1] += self.coords[1][kn-1]/4
                                 center[2] += self.coords[2][kn-1]/4
                             pos = 6
+                        elif v[2]=='SHQ4':
+                            for kk in range(8):
+                                inel.append(int(v[kk+3]))
+                            center = [0,0,0]
+                            for kn in inel:
+                                center[0] += self.coords[0][kn-1]/8
+                                center[1] += self.coords[1][kn-1]/8
+                                center[2] += self.coords[2][kn-1]/8
+                            pos = 10
                         self.shell.inel.append(inel)
                         self.shell.number.append(int(v[1]))
                         self.shell.mat.append(int(v[pos+4]))
@@ -580,7 +601,7 @@ class zsoil_inp:
                         self.shell.center[2].append(center[2])
                         self.num_shells.append(int(v[0]))
                 if debug:
-                    print 'read %i volumics'%(ke)
+                    print 'read %i shells'%(ke)
             elif '.ics' in line and 'ics' in sections:
                 if debug:
                     print 'reading ics'
@@ -852,6 +873,24 @@ class zsoil_inp:
                     line = file.readline()
                     m.name = line[:-1]
                     self.nodal_masses.append(m)
+            elif '.fac' in line:
+                line = file.readline()
+                self.nFaceGroups = int(line)
+                for kfg in range(self.nFaceGroups):
+                    fg = FaceGroup()
+                    fg.nFaces = int(file.readline())
+                    fg.name = file.readline()[:-1]
+                    for kf in range(fg.nFaces):
+                        line = file.readline()
+                        v = line.split()
+                        kele = int(v[0])
+                        if kele in self.num_volumics:
+                            inel0 = self.vol.inel[self.num_volumics.index(kele)]
+                            inel = [inel0[kk] for kk in face_nds[int(v[1])-1]]
+                        elif kele in self.num_shells:
+                            inel = self.shell.inel[self.num_shells.index(kele)]
+                        fg.element_faces.append((int(v[0]),int(v[1]),inel))
+                    self.face_groups.append(fg)
             elif 'NUM_MATERIALS' in line:
                 if len(self.materials)==0:  # standard materials
                     self.nMaterials = int(line.split('=')[1])

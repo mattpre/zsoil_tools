@@ -694,8 +694,8 @@ def get_curved_section_vol(mesh,polyline,ylim,dx,direction=np.array([0,1,0]),cel
                         crd_2d.InsertNextTuple2(x2d,x[1])
                     if n==1:
                         lines.InsertNextCell(line)
-                    elif n>1:
-                        print('Intersection with %i points'%(n))
+##                    elif n>1:
+##                        print('Intersection with %i points'%(n+1))
                     n += 1
 
     output.SetPolys(lines)

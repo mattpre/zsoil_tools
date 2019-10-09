@@ -612,8 +612,8 @@ def contourf(ax,val,crd,output,loc_syst,orig,levels=0):
 
     return CS
 
-def contourf_curved_section(ax,val,crd,output,levels=0):
-    loc = locator_curved(output,val)
+def contourf_curved_section(ax,val,crd,output,levels=0,alpha=0):
+    loc = locator_curved(output,val,alpha)
 
     # contour data:
     bounds = [[min(crd[0]),max(crd[0])],
@@ -705,7 +705,7 @@ class locator:
             return sum([pcoords[kk]*v[kk] for kk in range(3)])
 
 class locator_curved:
-    def __init__(self,pd,val):
+    def __init__(self,pd,val,alpha=0):
         self.loc = vtk.vtkCellLocator()
         self.loc = vtk.vtkModifiedBSPTree()
         
@@ -721,8 +721,15 @@ class locator_curved:
         del2d = vtk.vtkDelaunay2D()
         del2d.SetInputData(pd)
         del2d.SetTolerance(0)
+        if alpha>0:
+            del2d.SetAlpha(alpha)
         del2d.Update()
         self.pd2 = del2d.GetOutput()
+##        w = vtk.vtkXMLPolyDataWriter()
+##        w.SetFileName('del.vtp')
+##        w.SetInputData(self.pd2)
+##        w.Write()
+##        sys.exit(0)
         
         self.loc.SetDataSet(self.pd2)
         self.loc.BuildLocator()
@@ -736,11 +743,12 @@ class locator_curved:
         cid = self.loc.FindCell((x,y,z))
         if cid>-1:
             aCell = self.pd2.GetCell(cid)
-            pts = [(aCell.GetPoints().GetPoint(k)[0],
-                    aCell.GetPoints().GetPoint(k)[1]) for k in range(3)]
-            res = aCell.BarycentricCoords((x,y),pts[0],pts[1],pts[2],pcoords)
-            v = [self.values[aCell.GetPointId(k)] for k in range(3)]
-            return sum([pcoords[kk]*v[kk] for kk in range(3)])
+            if aCell.GetClassName()=='vtkTriangle':
+                pts = [(aCell.GetPoints().GetPoint(k)[0],
+                        aCell.GetPoints().GetPoint(k)[1]) for k in range(3)]
+                res = aCell.BarycentricCoords((x,y),pts[0],pts[1],pts[2],pcoords)
+                v = [self.values[aCell.GetPointId(k)] for k in range(3)]
+                return sum([pcoords[kk]*v[kk] for kk in range(3)])
 ##        else:
 ##            return 0
 

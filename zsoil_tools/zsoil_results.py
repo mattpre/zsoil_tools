@@ -375,12 +375,21 @@ class zsoil_results:
                 self.cnt.ps.append(int(v[2]))
                 self.cnt.type.append(3)
                 self.cnt.parent.append(self.num_beams[-1])
-            elif ele_type=='SXQ4':
+            elif ele_type in ['SXQ4']:
                 v = line.split()
                 self.num_shells.append(int(v[0]))
                 self.nShells += 1
                 inel = []
                 for kk in range(4):
+                    inel.append(int(v[5+kk]))
+                self.shell.inel.append(inel)
+                self.shell.ps.append(int(v[2]))
+            elif ele_type in ['SHQ4']:
+                v = line.split()
+                self.num_shells.append(int(v[0]))
+                self.nShells += 1
+                inel = []
+                for kk in range(8):
                     inel.append(int(v[5+kk]))
                 self.shell.inel.append(inel)
                 self.shell.ps.append(int(v[2]))
@@ -1058,7 +1067,7 @@ class zsoil_results:
         for kele in range(self.nShells):
             inel = self.shell.inel[kele]
             crd = []
-            for kk in range(4):
+            for kk in range(len(inel)):
                 crd.append([self.coords[0][inel[kk]-1],
                             self.coords[1][inel[kk]-1],
                             self.coords[2][inel[kk]-1]])
@@ -2281,3 +2290,15 @@ class zsoil_results:
                     v = LTF[1][-1]
 
         return v
+
+    def get_tstr(self,t,t0=False):
+            if t0:
+                intpart = int(float('%1.2f'%(t)))
+                tstr = str(intpart).rjust(3,'0')+'_'+('%1.0f'%(100*(t-intpart))).rjust(2,'0')
+                intpart = int(float('%1.2f'%(t0)))
+                tstr += '-'+str(intpart).rjust(3,'0')+'_'+('%1.0f'%(100*(t0-intpart))).rjust(2,'0')
+            else:
+                intpart = int(float('%1.2f'%(t)))
+                tstr = str(intpart).rjust(3,'0')+'_'+('%1.0f'%(100*(t-intpart))).rjust(2,'0')
+
+            return tstr
