@@ -147,7 +147,7 @@ class ZSmaterial:
             elif self.geom['inp_type']==2:  # specification by values
                 ind = 1
             else:
-                print 'Error in read_Data'
+                print('Error in read_Data')
             self.geom['Ix'] = float(lines[ind].split()[3])
             self.geom['Iy'] = float(lines[ind].split()[4])
             self.geom['Iz'] = float(lines[ind].split()[5])
@@ -337,7 +337,7 @@ class ZSmaterial:
                         elif not line=='\n':
                             data[ind].append(line)
                         line = f.readline()
-                    print mat.number,mat.name,mat.type
+                    print(mat.number,mat.name,mat.type)
                     mat.read_Data(data)
                     # end readmat proc
             elif 'STANDARD' in line:
@@ -475,7 +475,7 @@ class ZSmaterial:
                 or mat.type=='Densification model'
                 or 'Mohr' in mat.type
                 or 'Hoek-Brown' in mat.type):
-                print km,mat.type,mat.name
+                print(km,mat.type,mat.name)
                 kkm += 1
                 worksheet.write(kkm+2,0, unicode(mat.name,sys.stdin.encoding),cell)
                 worksheet.write(kkm+2,1, mat.type,cell)

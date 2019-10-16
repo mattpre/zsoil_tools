@@ -23,7 +23,7 @@ def write_vtu(res,tsteps='all',verbose=True,
     for kt in tsteps:
         step = res.steps[kt]
         if not verbose:
-            print 'writing step %i'%(kt)
+            print('writing step %i'%(kt))
         tstr = str(int(step.time)).rjust(3,'0')+'_'+str(int((step.time-int(step.time))*100)).rjust(2,'0')
 
         if vol:
@@ -52,7 +52,7 @@ def write_vtu(res,tsteps='all',verbose=True,
                 if res.EF[res.vol.EF.GetValue(k)][0]<=step.time and res.EF[res.vol.EF.GetValue(k)][1]>step.time:
                     a=eleList.InsertNextId(k)
             if not verbose:
-                print '%i volumics written'%(eleList.GetNumberOfIds())
+                print('%i volumics written'%(eleList.GetNumberOfIds()))
             extract.SetCellList(eleList)
             grid = extract.GetOutputPort()
             writer.SetInputConnection(grid)
@@ -82,7 +82,7 @@ def write_vtu(res,tsteps='all',verbose=True,
                 if res.EF[res.shell.EF.GetValue(k)][0]<=step.time and res.EF[res.shell.EF.GetValue(k)][1]>step.time:
                     a=eleList.InsertNextId(k)
             if not verbose:
-                print '%i shells written'%(eleList.GetNumberOfIds())
+                print('%i shells written'%(eleList.GetNumberOfIds()))
             extract.SetCellList(eleList)
             grid = extract.GetOutputPort()
             writer.SetInputConnection(grid)
@@ -109,7 +109,7 @@ def write_vtu(res,tsteps='all',verbose=True,
                 if res.EF[res.truss.EF.GetValue(k)][0]<=step.time and res.EF[res.truss.EF.GetValue(k)][1]>step.time:
                     a=eleList.InsertNextId(k)
             if not verbose:
-                print '%i trusses written'%(eleList.GetNumberOfIds())
+                print('%i trusses written'%(eleList.GetNumberOfIds()))
             extract.SetCellList(eleList)
             grid = extract.GetOutputPort()
             writer.SetInputConnection(grid)
@@ -137,7 +137,7 @@ def write_vtu(res,tsteps='all',verbose=True,
                 if res.EF[res.beam.EF.GetValue(k)][0]<=step.time and res.EF[res.beam.EF.GetValue(k)][1]>step.time:
                     a=eleList.InsertNextId(k)
             if not verbose:
-                print '%i beams written'%(eleList.GetNumberOfIds())
+                print('%i beams written'%(eleList.GetNumberOfIds()))
             extract.SetCellList(eleList)
             grid = extract.GetOutputPort()
             writer.SetInputConnection(grid)
@@ -194,7 +194,7 @@ def write_vtu_diff(res,step0,step1,name,verbose=True,
                    disp=True):
 
     if not verbose:
-        print 'writing step %i'%(kt)
+        print('writing step %i'%(kt))
 ##    tstr = str(int(step1.time)).rjust(3,'0')+'_'+str(int((step1.time-int(step1.time))*100)).rjust(2,'0')
 ##    tstr += '-'+str(int(step0.time)).rjust(3,'0')+'_'+str(int((step0.time-int(step0.time))*100)).rjust(2,'0')
 
@@ -277,7 +277,7 @@ def write_vtu_diff(res,step0,step1,name,verbose=True,
             if res.EF[res.vol.EF.GetValue(k)][0]<=step1.time and res.EF[res.vol.EF.GetValue(k)][1]>step1.time:
                 a=eleList.InsertNextId(k)
         if not verbose:
-            print '%i volumics written'%(eleList.GetNumberOfIds())
+            print('%i volumics written'%(eleList.GetNumberOfIds()))
         extract.SetCellList(eleList)
         grid = extract.GetOutputPort()
         writer.SetInputConnection(grid)
@@ -334,7 +334,7 @@ def write_vtu_diff(res,step0,step1,name,verbose=True,
             if res.EF[res.shell.EF.GetValue(k)][0]<=step1.time and res.EF[res.shell.EF.GetValue(k)][1]>step1.time:
                 a=eleList.InsertNextId(k)
         if not verbose:
-            print '%i shells written'%(eleList.GetNumberOfIds())
+            print('%i shells written'%(eleList.GetNumberOfIds()))
         extract.SetCellList(eleList)
         grid = extract.GetOutputPort()
         writer.SetInputConnection(grid)
@@ -382,7 +382,7 @@ def write_vtu_diff(res,step0,step1,name,verbose=True,
             if res.EF[res.truss.EF.GetValue(k)][0]<=step1.time and res.EF[res.truss.EF.GetValue(k)][1]>step1.time:
                 a=eleList.InsertNextId(k)
         if not verbose:
-            print '%i trusses written'%(eleList.GetNumberOfIds())
+            print('%i trusses written'%(eleList.GetNumberOfIds()))
         extract.SetCellList(eleList)
         grid = extract.GetOutputPort()
         writer.SetInputConnection(grid)
@@ -430,7 +430,7 @@ def write_vtu_diff(res,step0,step1,name,verbose=True,
             if res.EF[res.beam.EF.GetValue(k)][0]<=step1.time and res.EF[res.beam.EF.GetValue(k)][1]>step1.time:
                 a=eleList.InsertNextId(k)
         if not verbose:
-            print '%i beams written'%(eleList.GetNumberOfIds())
+            print('%i beams written'%(eleList.GetNumberOfIds()))
         extract.SetCellList(eleList)
         grid = extract.GetOutputPort()
         writer.SetInputConnection(grid)
@@ -889,9 +889,9 @@ class pl_view:
         LightPosition = [CameraFocalPoint[0]+(CameraPosition[0]-CameraFocalPoint[0])*1,
                          CameraFocalPoint[1]+(CameraPosition[1]-CameraFocalPoint[1])*2,
                          CameraFocalPoint[2]+(CameraPosition[2]-CameraFocalPoint[2])*1]
-        print CameraPosition
-        print CameraFocalPoint
-        print LightPosition
+        print(CameraPosition)
+        print(CameraFocalPoint)
+        print(LightPosition)
         light.SetPosition(LightPosition)
         light.SetFocalPoint(CameraFocalPoint)
         light.SetIntensity(1.2)

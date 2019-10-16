@@ -1,6 +1,6 @@
 Metadata-Version: 1.1
 Name: zsoil-tools
-Version: 1.1.18
+Version: 1.2.1
 Summary: Tools for pre- and postprocessing ZSoil data
 Home-page: http:www.geomod.ch
 Author: Matthias Preisig
@@ -19,3 +19,4 @@ Platform: UNKNOWN
 Classifier: Development Status :: 4 - Beta
 Classifier: License :: OSI Approved :: GNU Affero General Public License v3
 Classifier: Programming Language :: Python :: 2.7
+Classifier: Programming Language :: Python :: 3.7

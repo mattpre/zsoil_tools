@@ -81,7 +81,7 @@ def create_cell_data(mesh,eg,res_group,step_res,res_labels,nEle,
                     else:
                         anArr[0].InsertNextTuple([aRes1[kcomp][ke]-aRes0[kcomp][ke] for kcomp in range(len(aRes1))])
                 except:
-                    print anArr
+                    print(anArr)
                     print('Results for %s have not been read for the requested step.'%(eg.type))
     else:
         for ke in range(nEle):
@@ -102,7 +102,7 @@ def create_cell_data(mesh,eg,res_group,step_res,res_labels,nEle,
                     else:
                         anArr[0].InsertNextTuple([comp[ke] for comp in aRes])
                 except:
-                    print anArr
+                    print(anArr)
                     print('Results for %s have not been read for the requested step.'%(eg.type))
     mesh.SetCells(vtk_cell_type,cells)
     cdata = mesh.GetCellData()
@@ -135,7 +135,7 @@ def create_point_data(mesh,nodal,step_nodal,res_labels,nNodes):
             arrays.append([anArr,lab,nodal.ncomp[rt]])
 
     for anArr in arrays:
-##        print anArr
+##        print(anArr)
         if type(step_nodal)==list:
             aRes0 = getattr(step_nodal[0],anArr[1])
             aRes1 = getattr(step_nodal[1],anArr[1])
@@ -198,7 +198,7 @@ def write_unstructured_grid(filename,mesh,cdata,nEle,EFs,time,verbose,
     writer.SetInputConnection(grid)
     writer.Write()
     if not verbose:
-        print '%i elements written to %s'%(eleList.GetNumberOfIds(),filename)
+        print('%i elements written to %s'%(eleList.GetNumberOfIds(),filename))
 
 def get_tstr(t,t0=False):
         if t0:
@@ -244,7 +244,7 @@ def write_vtu(res,tsteps='all',verbose=True,
     for kt in tsteps:
         step = res.steps[kt]
         if not verbose:
-            print 'writing step %i'%(kt)
+            print('writing step %i'%(kt))
         if refstep:
             tstr = get_tstr(step.time,refstep.time)
         else:
@@ -589,7 +589,7 @@ def get_section_vol(mesh,plane,loc_syst,celldata=False,
         pdata = output.GetPointData()
     anArray = pdata.GetArray(array)
     if anArray is None:
-        print 'Array '+array+' is not found.'
+        print('Array '+array+' is not found.')
     val = []
     inel = []
     crd = [[],[]]
@@ -614,7 +614,7 @@ def get_section_vol(mesh,plane,loc_syst,celldata=False,
 
     return val,crd,output
 
-def get_curved_section_vol(mesh,polyline,dx,direction=np.array([0,1,0]),celldata=False,
+def get_curved_section_vol(mesh,polyline,ylim,dx,direction=np.array([0,1,0]),celldata=False,
                            array='DISP_TRA',component=-1,mesh0=0,
                            matlist=[],EFlist=[],LFlist=[]):
 
@@ -637,6 +637,7 @@ def get_curved_section_vol(mesh,polyline,dx,direction=np.array([0,1,0]),celldata
     # right now only works for vertical raycasting!
     if abs(direction[1]-1)<1e-6:
         minmax = [bounds[2],bounds[3]]
+    minmax = ylim
 
     output = vtk.vtkPolyData()
     lines = vtk.vtkCellArray()
@@ -693,8 +694,8 @@ def get_curved_section_vol(mesh,polyline,dx,direction=np.array([0,1,0]),celldata
                         crd_2d.InsertNextTuple2(x2d,x[1])
                     if n==1:
                         lines.InsertNextCell(line)
-                    elif n>1:
-                        print('Intersection with %i points'%(n))
+##                    elif n>1:
+##                        print('Intersection with %i points'%(n+1))
                     n += 1
 
     output.SetPolys(lines)
@@ -710,7 +711,7 @@ def get_curved_section_vol(mesh,polyline,dx,direction=np.array([0,1,0]),celldata
 
     anArray = pdata.GetArray(array)
     if anArray is None:
-        print 'Array '+array+' is not found.'
+        print('Array '+array+' is not found.')
     val = []
     crd = [[],[]]
 
@@ -899,9 +900,9 @@ class pl_view:
         LightPosition = [CameraFocalPoint[0]+(CameraPosition[0]-CameraFocalPoint[0])*1,
                          CameraFocalPoint[1]+(CameraPosition[1]-CameraFocalPoint[1])*2,
                          CameraFocalPoint[2]+(CameraPosition[2]-CameraFocalPoint[2])*1]
-        print CameraPosition
-        print CameraFocalPoint
-        print LightPosition
+        print(CameraPosition)
+        print(CameraFocalPoint)
+        print(LightPosition)
         light.SetPosition(LightPosition)
         light.SetFocalPoint(CameraFocalPoint)
         light.SetIntensity(1.2)

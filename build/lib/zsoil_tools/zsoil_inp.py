@@ -298,6 +298,12 @@ class NodalMass:
         self.mass = 0
         self.name = str()
 
+class FaceGroup: # for mesh tying
+    def __init__(self):
+        self.name = str()
+        self.nFaces = 0
+        self.element_faces = []
+
 class zsoil_inp:
     """Main data structure
     """
@@ -318,6 +324,7 @@ class zsoil_inp:
         self.nContacts = 0
         self.nBeams = 0
         self.nShells = 0
+        self.nThickShells = 0
         self.nTrusses = 0
         self.num_volumics = []
         self.num_shells = []
@@ -330,11 +337,13 @@ class zsoil_inp:
         self.nPlines = 0
         self.nArcs = 0
         self.nSurfaces = []
+        self.nFaceGroups = []
         self.ptcrds = [[],[],[]]
         self.line = []
         self.arc = []
         self.pline = []
         self.surfaces = []
+        self.face_groups = []
         
         self.nBCs = 0
         self.nSurfaceLoads = 0
@@ -354,6 +363,7 @@ class zsoil_inp:
         self.cnt = ele_info()
         self.beam = ele_info()
         self.shell = ele_info()
+        self.thickshell = ele_info()
         self.truss = ele_info()
 
         self.BCs = [[],[],[]]
@@ -407,9 +417,11 @@ class zsoil_inp:
         self.nMaterials = int(line.split()[2])
         self.nEF = int(line.split()[3]) # not correct in v16.03
         self.nLF = int(line.split()[4]) # not correct in v16.03
+        self.nThickShells = int(line.split()[24])
+        self.nShells += self.nThickShells
         line = file.readline()
         self.nContacts = int(line.split()[1])
-        self.nShells = int(line.split()[14])
+        self.nShells += int(line.split()[14])
         self.nBeams = int(line.split()[8])
         self.nBeamLoads = int(line.split()[8])
         self.nNodalMasses = int(line.split()[23])
@@ -422,10 +434,10 @@ class zsoil_inp:
         for line in iter(lambda: file.readline(), ""):
             if debug:
                 if line[0]=='.':
-                    print line,
+                    print(line)
             if '.ing' in line and 'ing' in sections:
                 if debug:
-                    print 'reading ing'
+                    print('reading ing')
                 for kn in range(self.nNodes):
                     line = file.readline()
                     v = line.split()
@@ -434,7 +446,7 @@ class zsoil_inp:
                     self.coords[2].append(float(v[3]))
             elif '.i0g' in line and 'i0g' in sections:
                 if debug:
-                    print 'reading i0g'
+                    print('reading i0g')
                 for ke in range(self.nVolumics+self.nVolumics2D):
                     line = file.readline()
                     if 'B8' in line:
@@ -508,7 +520,7 @@ class zsoil_inp:
 ##                        self.vol.center[2].append(center[2])
             elif '.ibg' in line and 'ibg' in sections:
                 if debug:
-                    print 'reading ibg'
+                    print('reading ibg')
                 for ke in range(self.nBeams):
                     line = file.readline()
                     if 'BEL2' in line:
@@ -532,7 +544,7 @@ class zsoil_inp:
                         self.num_beams.append(int(v[0]))
             elif '.itg' in line and 'itg' in sections:
                 if debug:
-                    print 'reading itg'
+                    print('reading itg')
                 for ke in range(self.nTrusses):
                     line = file.readline()
                     if 'TRS2' in line:
@@ -553,10 +565,10 @@ class zsoil_inp:
                         self.num_trusses.append(int(v[0]))
             elif '.ilg' in line and 'ilg' in sections:
                 if debug:
-                    print 'reading ilg'
+                    print('reading ilg')
                 for ke in range(self.nShells):
                     line = file.readline()
-                    if 'SXQ4' in line:
+                    if 'SXQ4' in line or 'SHQ4' in line:
                         v = line.split()
                         inel = []
                         if v[2]=='SXQ4':
@@ -568,6 +580,15 @@ class zsoil_inp:
                                 center[1] += self.coords[1][kn-1]/4
                                 center[2] += self.coords[2][kn-1]/4
                             pos = 6
+                        elif v[2]=='SHQ4':
+                            for kk in range(8):
+                                inel.append(int(v[kk+3]))
+                            center = [0,0,0]
+                            for kn in inel:
+                                center[0] += self.coords[0][kn-1]/8
+                                center[1] += self.coords[1][kn-1]/8
+                                center[2] += self.coords[2][kn-1]/8
+                            pos = 10
                         self.shell.inel.append(inel)
                         self.shell.number.append(int(v[1]))
                         self.shell.mat.append(int(v[pos+4]))
@@ -580,10 +601,10 @@ class zsoil_inp:
                         self.shell.center[2].append(center[2])
                         self.num_shells.append(int(v[0]))
                 if debug:
-                    print 'read %i volumics'%(ke)
+                    print('read %i shells'%(ke))
             elif '.ics' in line and 'ics' in sections:
                 if debug:
-                    print 'reading ics'
+                    print('reading ics')
                 self.cnt.doublesided = []
                 self.cnt.side_pos = []
                 self.cnt.side_neg = []
@@ -652,10 +673,10 @@ class zsoil_inp:
                         self.cnt.center[2].append(center[2])
                         self.num_contacts.append(int(v[1]))
                     else:
-                        print 'Error: check reading of contacts'
+                        print('Error: check reading of contacts')
             elif '.inb' in line and 'inb' in sections:
                 if debug:
-                    print 'reading inb'
+                    print('reading inb')
                 for kn in range(self.nBCs):
                     line = file.readline()
                     v = line.split()
@@ -667,7 +688,7 @@ class zsoil_inp:
                         self.BCs[2].append(int(v[1]))
             elif '.pob' in line and 'pob' in sections:
                 if debug:
-                    print 'reading pob'
+                    print('reading pob')
                 for kp in range(self.nPoints):
                     line = file.readline()
                     v = line.split()
@@ -676,7 +697,7 @@ class zsoil_inp:
                     self.ptcrds[2].append(float(v[3]))
             elif '.gob' in line and 'gob' in sections:
                 if debug:
-                    print 'reading gob'
+                    print('reading gob')
                 line = file.readline()
                 n = int(line)
                 for kp in range(n):
@@ -716,7 +737,7 @@ class zsoil_inp:
                         self.pline.append(aPline)
             elif '.inl' in line and 'inl' in sections:
                 if debug:
-                    print 'reading inl'
+                    print('reading inl')
                 for kp in range(self.nNodalLoads):
                     line = file.readline()
                     v = line.split()
@@ -726,7 +747,7 @@ class zsoil_inp:
                     self.nodalLoads.append(nLoad)
             elif '.ibf' in line and 'ibf' in sections:
                 if debug:
-                    print 'reading ibf'
+                    print('reading ibf')
                 for kp in range(self.nBeams):
                     line = file.readline()
                     kb = int(line.split()[0])
@@ -741,7 +762,7 @@ class zsoil_inp:
                 self.nBeamLoads = len(self.beamLoads)
             elif '.gsl' in line and 'gsl' in sections:
                 if debug:
-                    print 'reading gsl'
+                    print('reading gsl')
                 line = file.readline()
                 while not line=='\n':
                     sl = SurfaceLoad()
@@ -831,7 +852,7 @@ class zsoil_inp:
                     RM = ReinfMember()
                     RM.nBeams = int(v[1])
                     if not v[0]=='0' and not v[2]=='0' and not v[3]=='0.100000':
-                        print v
+                        print(v)
                     RM.reSet = file.readline()[:-1]
                     RM.reSet_num = self.reinf_set_names_list.index(RM.reSet)
                     v = file.readline().split()
@@ -852,6 +873,24 @@ class zsoil_inp:
                     line = file.readline()
                     m.name = line[:-1]
                     self.nodal_masses.append(m)
+            elif '.fac' in line:
+                line = file.readline()
+                self.nFaceGroups = int(line)
+                for kfg in range(self.nFaceGroups):
+                    fg = FaceGroup()
+                    fg.nFaces = int(file.readline())
+                    fg.name = file.readline()[:-1]
+                    for kf in range(fg.nFaces):
+                        line = file.readline()
+                        v = line.split()
+                        kele = int(v[0])
+                        if kele in self.num_volumics:
+                            inel0 = self.vol.inel[self.num_volumics.index(kele)]
+                            inel = [inel0[kk] for kk in face_nds[int(v[1])-1]]
+                        elif kele in self.num_shells:
+                            inel = self.shell.inel[self.num_shells.index(kele)]
+                        fg.element_faces.append((int(v[0]),int(v[1]),inel))
+                    self.face_groups.append(fg)
             elif 'NUM_MATERIALS' in line:
                 if len(self.materials)==0:  # standard materials
                     self.nMaterials = int(line.split('=')[1])
@@ -874,7 +913,7 @@ class zsoil_inp:
                                     sect.dimensions = [float(v) for v in line.split()]
                                     line = file.readline()
                                     sect.values = [float(v) for v in line.split()]
-				elif sect.def_type==0:
+                                elif sect.def_type==0:
                                     line = file.readline()
                                     line = file.readline()
                                     sect.name = line[:-1]
@@ -941,7 +980,7 @@ class zsoil_inp:
                     self.layered_beam_components[comp.number] = comp
             elif 'EXIST_FUNC' in line:
                 if debug:
-                    print 'reading EXIST_FUNC'
+                    print('reading EXIST_FUNC')
                 self.nEF = int(line.split()[1])
                 exfun0 = ExistFun()
                 exfun0.number = 0
@@ -962,7 +1001,7 @@ class zsoil_inp:
                     self.EFs[exfun.number] = exfun
             elif 'LOAD_FUN' in line:
                 if debug:
-                    print 'reading LOAD_FUN'
+                    print('reading LOAD_FUN')
                 self.nLF = int(line.split()[1])
                 for kLF in range(self.nLF):
                     lfun = LoadFun()
