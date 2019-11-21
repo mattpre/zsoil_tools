@@ -13,11 +13,11 @@ import vtk
 from matplotlib import colors
 
 
-res2import = {'NODAL':['DISP_TRA','DISP_ROT','PPRESS','PRES_HEAD'],
+res2import = {'NODAL':['DISP_TRA','DISP_ROT','PPRESS','PRES_HEAD','TEMP'],
               'BEAMS':['FORCE','MOMENT'],
               'TRUSSES':['FORCE'],
               'SHELLS':['SMFORCE','SQFORCE','SMOMENT','THICK'],
-              'VOLUMICS':['STRESESS','STRESSES','STRAINS','STR_LEVEL','PRINC','FLU_VELOC','SATUR'],
+              'VOLUMICS':['STRESESS','STRESSES','STRAINS','STR_LEVEL','PRINC','FLU_VELOC','SATUR','DAMAGE'],
               'CONTACT':['STRESESS','STRESSES','STRAINS','PLA_CODE','STR_LEVEL']}
 
 def create_cell_data(mesh,eg,res_group,step_res,res_labels,nEle,
@@ -54,10 +54,10 @@ def create_cell_data(mesh,eg,res_group,step_res,res_labels,nEle,
                 for kc,c in enumerate(eg.comp_labels[rt]):
                     anArr.SetComponentName(kc,c)
                 anArr.SetName(eg.res_labels[rt])
-                if rdict.has_key(eg.res_labels[rt]):
+                if eg.res_labels[rt] in rdict:
                     lab = rdict[eg.res_labels[rt]]
                 else:
-                    lab = eg.res_labels[rt].lower()
+                    lab = eg.res_labels[rt]#.lower()
                 arrays.append([anArr,lab,eg.ncomp[rt]])
     if type(step_res)==list:
         step0_res = step_res[0]
@@ -118,7 +118,8 @@ def create_point_data(mesh,nodal,step_nodal,res_labels,nNodes):
     rdict = {'DISP_TRA':'disp',
              'DISP_ROT':'rot',
              'PPRESS':'ppres',
-             'PRES_HEAD':'pres_head'}
+             'PRES_HEAD':'pres_head',
+             'TEMP':'temp'}
     pdata = mesh.GetPointData()
     arrays = []
     for rt in range(len(nodal.res_labels)):
@@ -128,7 +129,7 @@ def create_point_data(mesh,nodal,step_nodal,res_labels,nNodes):
             for kc,c in enumerate(nodal.comp_labels[rt]):
                 anArr.SetComponentName(kc,c)
             anArr.SetName(nodal.res_labels[rt])
-            if rdict.has_key(nodal.res_labels[rt]):
+            if nodal.res_labels[rt] in rdict:
                 lab = rdict[nodal.res_labels[rt]]
             else:
                 lab = nodal.res_labels[rt].lower()
@@ -200,16 +201,22 @@ def write_unstructured_grid(filename,mesh,cdata,nEle,EFs,time,verbose,
     if not verbose:
         print('%i elements written to %s'%(eleList.GetNumberOfIds(),filename))
 
-def get_tstr(t,t0=False):
+def get_tstr(t,sf=0,t0=False):
         if t0:
             intpart = int(float('%1.2f'%(t)))
             tstr = str(intpart).rjust(3,'0')+'_'+('%1.0f'%(100*(t-intpart))).rjust(2,'0')
+            if sf>0:
+                intpart = int(float('%1.2f'%(sf)))
+                tstr += '_sf'+str(intpart).rjust(2,'0')+'_'+('%1.0f'%(100*(sf-intpart))).rjust(2,'0')
             intpart = int(float('%1.2f'%(t0)))
             tstr += '-'+str(intpart).rjust(3,'0')+'_'+('%1.0f'%(100*(t0-intpart))).rjust(2,'0')
         else:
             intpart = int(float('%1.2f'%(t)))
             tstr = str(intpart).rjust(3,'0')+'_'+('%1.0f'%(100*(t-intpart))).rjust(2,'0')
-
+            if sf>0:
+                intpart = int(float('%1.2f'%(sf)))
+                tstr += '_sf'+str(intpart).rjust(2,'0')+'_'+('%1.0f'%(100*(sf-intpart))).rjust(2,'0')
+ 
         return tstr
 
 def write_vtu(res,tsteps='all',verbose=True,
@@ -246,9 +253,9 @@ def write_vtu(res,tsteps='all',verbose=True,
         if not verbose:
             print('writing step %i'%(kt))
         if refstep:
-            tstr = get_tstr(step.time,refstep.time)
+            tstr = get_tstr(step.time,step.sf,refstep.time)
         else:
-            tstr = get_tstr(step.time)
+            tstr = get_tstr(step.time,step.sf)
 
         if res.nodalRead:
             nodal_res = res.nodal_res[0]

@@ -94,6 +94,7 @@ class vol:
         self.satur = []
         self.flu_veloc = []
         self.Et = []
+##        self.DAMAGE = []
         # principal stresses are not automatically computed:
         self.princ = []
         self.invar = [] #I1, J2, p, q
@@ -498,7 +499,7 @@ class zsoil_results:
                         line = lines[kl]
                         kl += 1
                     while not line[1]==' ':
-                        if not line[0]==' ' and not line[:5]=='HUMID' and not line[0]=='-':
+                        if not line[0]==' ' and not line[:5]=='HUMID' and not line[:5]=='CREEP' and not line[0]=='-':
                             kl = lastpos
                             break
                         lastpos = kl-1
@@ -836,6 +837,7 @@ class zsoil_results:
                 rot = []
                 ppres = []
                 pres_head = []
+                temp = []
         
                 nodal_res = []
                 for rt in self.nodal_res[0].res_labels:
@@ -856,6 +858,10 @@ class zsoil_results:
                             nodal_res.append(3)
                             for kcomp in range(self.nodal_res[0].ncomp[self.nodal_res[0].res_labels.index(rt)]):
                                 pres_head.append([])
+                        elif rt=='TEMP':
+                            nodal_res.append(4)
+                            for kcomp in range(self.nodal_res[0].ncomp[self.nodal_res[0].res_labels.index(rt)]):
+                                temp.append([])
                     elif res_type=='velocities':
                         if rt=='VELOC-TRA':
                             nodal_res.append(0)
@@ -888,11 +894,16 @@ class zsoil_results:
                             for kr in range(self.nodal_res[0].ncomp[kk]):
                                 pres_head[kr].append(vals[ind])
                                 ind += 1
+                        elif k==4:
+                            for kr in range(self.nodal_res[0].ncomp[kk]):
+                                temp[kr].append(vals[ind])
+                                ind += 1
                 if res_type=='displacements':
                     step.nodal.disp = disp
                     step.nodal.rot = rot
                     step.nodal.ppres = ppres
                     step.nodal.pres_head = pres_head
+                    step.nodal.temp = temp
                 elif res_type=='reactions':
                     step.nodal.r_disp = disp
                     step.nodal.r_rot = rot

@@ -95,3 +95,11 @@ SHQ4 are also shells
 
 v1.2.1
 python 3.7 compatible
+
+v1.2.2
+zsoil_results:
+bug fix in read_dat for concrete plastic damage model
+
+v1.2.3
+vtktools:
+sf in file name for vtu files
