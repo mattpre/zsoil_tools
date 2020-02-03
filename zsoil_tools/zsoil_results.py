@@ -168,6 +168,13 @@ class anchor:
         self.cnt1D = []
         self.cnt0D = -1
         self.nTrusses = 0
+        
+class mem:
+    def __init__(self):
+        self.smforce = []
+        self.strain = []
+        self.pla_code = []
+        self.str_level = []
 
 class property_set:
     def __init__(self):
@@ -237,6 +244,9 @@ class time_step:
         # 0D contact results (e.g. pile tip interface):
         self.cnt0D = cnt()
 
+        # membrane results:
+        self.mem = mem()
+
 class zsoil_results:
     def __init__(self,pathname,problem_name):
         self.pathname = pathname
@@ -257,6 +267,7 @@ class zsoil_results:
         self.beamsNLRead = False
         self.trussesRead = False
         self.contactsRead = False
+        self.membranesRead = False
 
         self.property_sets = []
 
@@ -286,11 +297,13 @@ class zsoil_results:
         self.nTrusses = 0
         self.nPiles = 0
         self.nNodalLinks = 0
+        self.nMembranes = 0
         self.num_volumics = []
         self.num_shells = []
         self.num_beams = []
         self.num_trusses = []
         self.num_contacts = []
+        self.num_membranes = []
 
         self.coords = []
         self.vol = ele_info()
@@ -298,6 +311,7 @@ class zsoil_results:
         self.beam = ele_info()
         self.shell = ele_info()
         self.truss = ele_info()
+        self.mem = ele_info()
 
         # macro elements:
         self.piles = []
@@ -437,6 +451,15 @@ class zsoil_results:
                     inel.append(int(v[5+kk]))
                 self.vol.inel.append(inel)
                 self.vol.ps.append(int(v[2]))
+            elif ele_type=='M_Q4':
+                v = line.split()
+                self.num_membranes.append(int(v[0]))
+                self.nMembranes += 1
+                inel = []
+                for kk in range(4):
+                    inel.append(int(v[5+kk]))
+                self.mem.inel.append(inel)
+                self.mem.ps.append(int(v[2]))
             elif 'BEL2' in ele_type:
                 v = line.split()
                 self.num_beams.append(int(v[0]))
@@ -652,6 +675,10 @@ class zsoil_results:
             self.cnt.mat.append(self.property_sets[self.cnt.ps[ele]-1].mat)
             self.cnt.EF.append(self.property_sets[self.cnt.ps[ele]-1].EF)
             self.cnt.LF.append(self.property_sets[self.cnt.ps[ele]-1].LF)
+        for ele in range(self.nMembranes):
+            self.mem.mat.append(self.property_sets[self.mem.ps[ele]-1].mat)
+            self.mem.EF.append(self.property_sets[self.mem.ps[ele]-1].EF)
+            self.mem.LF.append(self.property_sets[self.mem.ps[ele]-1].LF)
 
         
 
@@ -1949,6 +1976,130 @@ class zsoil_results:
                 
         f.close()
         self.contactsRead = True
+
+
+    def read_s15(self,arg=[]):
+        if not 'MEMBRANE' in self.ele_group_labels:
+            print('No membranes to be read.')
+            return 0
+
+        if '/v+' in arg:
+            verbose = False
+            printN = 100
+        elif '/v' in arg:
+            if len(arg)==2:
+                verbose = True
+                printN = 0
+            elif arg[:2]=='/v':
+                verbose = False
+                printN = int(arg[2:])
+        else:
+            verbose = False
+            printN = 1
+        # read MEMBRANES:
+        print('reading membrane results:')
+        gind = self.ele_group_labels.index('MEMBRANE')
+
+        egroup = self.ele_groups[gind]
+        nint = egroup.ncomp[egroup.res_labels.index('NINT')]
+        scomp = 4
+        fcomp = 2
+        
+
+        f = open(self.pathname + '/' + self.problem_name + '.s15', "rb")
+        k = 0
+
+        kkt = -1
+        byte = 'dummy'
+        for kt in range(len(self.steps)):
+            if kt in self.out_steps:
+                kkt += 1
+                if verbose==False:
+                    if kkt%printN==0:
+                        print('reading step ' + str(kt+1) + ' out of ' + str(self.nSteps))
+                step = self.give_time_step(kt)
+
+                # initialize result vectors for step kt:
+                vol_res = [[],[]]
+                for rt in egroup.res_labels:
+                    krt = egroup.res_labels.index(rt)
+                    if rt=='NINT':
+                        pass
+                    elif rt=='SMFORCE':
+                        smforce = []
+                        for c in egroup.comp_labels[krt]:
+                            smforce.append([])
+                    elif rt=='STRAINS':
+                        strain = []
+                        for c in egroup.comp_labels[krt]:
+                            strain.append([])
+                    elif rt=='PLA_CODE':
+                        pla_code = []
+                    elif rt=='STR_LEVEL':
+                        str_level = []
+                    else:  # general method for any result type (could replace lines above)
+                        vol_res[0].append(rt)
+                        if egroup.ncomp[krt]==1:
+                            ares = []
+                        else:
+                            ares = [[] for c in egroup.comp_labels[krt]]
+                        vol_res[1].append(ares)
+                        
+
+                # read results:
+                ncomp = sum(egroup.ncomp)
+                for n in range(self.nMembranes):
+                    bytes_read = f.read(4*ncomp)
+                    if bytes_read=='':break
+                    vals = unpack_from('f'*ncomp,bytes_read)
+                    ind = 0
+                    for rt in egroup.res_labels:
+                        krt = egroup.res_labels.index(rt)
+                        if rt=='NINT':
+                            ind += 1
+                        elif rt=='STRAINS':
+                            for k in range(egroup.ncomp[krt]):
+                                strain[k].append(vals[ind])
+                                ind += 1
+                        elif rt=='PLA_CODE':
+                            pla_code.append(vals[ind])
+                            ind += 1
+                        elif rt=='STR_LEVEL':
+                            str_level.append(vals[ind])
+                            ind += 1
+                        elif rt=='SMFORCE':
+                            for k in range(egroup.ncomp[krt]):
+                                smforce[k].append(vals[ind])
+##                                if k==0:
+##                                    if abs(vals[ind])>0.001:
+##                                        print(n,vals[ind])
+                                ind += 1
+                        else:  # general method for any result type (could replace lines above)
+                            res_ind = vol_res[0].index(rt)
+                            if egroup.ncomp[krt]==1:
+                                vol_res[1][res_ind].append(vals[ind])
+                                ind += 1
+                            else:
+                                for k in range(egroup.ncomp[krt]):
+                                    vol_res[1][res_ind][k].append(vals[ind])
+                                    ind += 1
+                if 'STRAINS' in egroup.res_labels:
+                    step.mem.strain = strain
+                if 'SMFORCE' in egroup.res_labels:
+                    step.mem.smforce = smforce
+                if 'PLA_CODE' in egroup.res_labels:
+                    step.mem.pla_code = pla_code
+                if 'STR_LEVEL' in egroup.res_labels:
+                    step.mem.str_level = str_level
+                for kk in range(len(vol_res[0])):
+                    setattr(step.mem,vol_res[0][kk],vol_res[1][kk])
+            else:
+                offset = sum(egroup.ncomp)*self.nMembranes*4
+                f.seek(offset,1)
+                    
+
+        f.close()
+        self.membranesRead = True
 
     def read_eda(self):
         file = open(self.pathname + '/' + self.problem_name + '.eda')

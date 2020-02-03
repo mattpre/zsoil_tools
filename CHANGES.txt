@@ -103,3 +103,12 @@ bug fix in read_dat for concrete plastic damage model
 v1.2.3
 vtktools:
 sf in file name for vtu files
+zsoil_results: support for temperature
+
+v1.3.0
+zsoil_results:
+read_s15 (membranes) 
+vtktools:
+membranes
+zsoil_inp:
+seepage elements
