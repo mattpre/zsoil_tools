@@ -51,6 +51,7 @@ class ele_info:
         self.LF = []
         self.rm1 = []
         self.rm2 = []
+        self.thick = []
         self.loc_syst = []
         self.center = [[],[],[]]
         self.dir = []
@@ -292,11 +293,27 @@ class ShellFiber:
         self.material = 0
         self.direction = 0
 
+class Thickness:
+    def __init__(self):
+        self.type = -1
+        self.thick = []
+
 class NodalMass:
     def __init__(self):
         self.node = 0
         self.mass = 0
         self.name = str()
+
+class SurfaceMass:
+    def __init__(self):
+        self.nElements = 0
+        self.elements = []
+        self.element_faces = []
+        self.mass = 0
+        self.name = str()
+        self.LF = 0
+        self.EF = 0
+        self.filtering = [0,0,0]
 
 class FaceGroup: # for mesh tying
     def __init__(self):
@@ -368,6 +385,7 @@ class zsoil_inp:
         self.nReinfMembers = 0
         self.nLayeredBeamComponents = 0
         self.nNodalMasses = 0
+        self.nSurfaceMasses = 0
         self.nFiberMaterials = 0
 
         self.coords = [[],[],[]]
@@ -388,11 +406,13 @@ class zsoil_inp:
         self.nodalLoads = []
         self.beamLoads = []
         self.nodal_masses = []
+        self.surface_masses = []
         self.reinf_sets = []
         self.reinf_members = []
         self.reinf_set_names_list = []
         self.reinf_set_per_beam = []
         self.seepages = []
+        self.thicknesses = []
 
         self.vtkVol = 0
         self.vtkShell = 0
@@ -611,12 +631,28 @@ class zsoil_inp:
                         self.shell.LF.append(int(v[pos+8]))
                         self.shell.rm1.append(int(v[pos+5]))
                         self.shell.rm2.append(int(v[pos+6]))
+                        self.shell.thick.append(int(v[pos+9]))
                         self.shell.center[0].append(center[0])
                         self.shell.center[1].append(center[1])
                         self.shell.center[2].append(center[2])
                         self.num_shells.append(int(v[0]))
                 if debug:
                     print('read %i shells'%(ke))
+            elif '.ilt' in line:
+                line = file.readline()
+                while len(line)>1 and not line[0]=='.':
+                    th = Thickness()
+                    th.type = int(line)
+                    if th.type==0:
+                        line = file.readline()
+                        th.thick.append(float(line))
+                    elif th.type==1:  # not tested
+                        for kk in range(2):
+                            line = file.readline()
+                            th.thick.append(float(line))
+                    self.thicknesses.append(th)
+                    line = file.readline()
+                    
             elif '.ics' in line and 'ics' in sections:
                 if debug:
                     print('reading ics')
@@ -888,6 +924,29 @@ class zsoil_inp:
                     line = file.readline()
                     m.name = line[:-1]
                     self.nodal_masses.append(m)
+            elif '.iem' in line:
+                line = file.readline()
+                self.nSurfaceMasses = int(line)
+                for km in range(self.nSurfaceMasses):
+                    line = file.readline()
+                    v = line.split()
+                    m = SurfaceMass()
+                    m.mass = float(v[2])
+                    m.LF = int(v[3])
+                    m.EF = int(v[4])
+                    m.nElements = int(v[6])
+                    m.number = km+1
+                    line = file.readline()
+                    v = line.split()
+                    m.filtering = [int(v[k]) for k in [1,2,3]]
+                    line = file.readline()
+                    m.name = line[:-1]
+                    for kf in range(m.nElements):
+                        line = file.readline()
+                        v = line.split()
+                        m.elements.append(int(v[0]))
+                        m.element_faces.append(int(v[1]))
+                    self.surface_masses.append(m)
             elif '.fac' in line:
                 line = file.readline()
                 self.nFaceGroups = int(line)
@@ -973,6 +1032,9 @@ class zsoil_inp:
                                 for kl2 in range(sect.nFibers):
                                     sect.fibers[kl2].material = int(v[5+sect.nFibers*3+kl2])
                                 mat.cross_section = sect
+                            elif 'DENS->' in line:
+                                vv = line.split('>')[1].split()
+                                mat.density = [float(v) for v in vv]
                             line = file.readline()
                         self.materials[mat.number] = mat
                 else:
