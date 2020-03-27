@@ -1029,7 +1029,7 @@ def get_legend(lut,categories={},hfrac=0.8,vpad=0.12,hwratio=4,dpi=96,
             ax.text(0.1,1-(kc+1)*(dh+ds)-ds/2,'%1.2e'%(val),
                     va='center',size=20)
     ax.annotate(label,size=24,
-                xy=(0.5,1-hfrac-0.02),xycoords='axes fraction',ha='center',va='bottom')
+                xy=(0.5,1-hfrac-0.05),xycoords='axes fraction',ha='center',va='bottom')
     ax.annotate('Model created\nand computed\nwith ZSoil',size=24,
                 xy=(0.5,0.01),xycoords='axes fraction',ha='center',va='bottom')
     ax.set_xlim(0,2)

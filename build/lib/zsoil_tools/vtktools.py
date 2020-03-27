@@ -18,7 +18,8 @@ res2import = {'NODAL':['DISP_TRA','DISP_ROT','PPRESS','PRES_HEAD','TEMP'],
               'TRUSSES':['FORCE'],
               'SHELLS':['SMFORCE','SQFORCE','SMOMENT','THICK'],
               'VOLUMICS':['STRESESS','STRESSES','STRAINS','STR_LEVEL','PRINC','FLU_VELOC','SATUR','DAMAGE'],
-              'CONTACT':['STRESESS','STRESSES','STRAINS','PLA_CODE','STR_LEVEL']}
+              'CONTACT':['STRESESS','STRESSES','STRAINS','PLA_CODE','STR_LEVEL'],
+              'MEMBRANE':['SMFORCE','STRAINS','STR_LEVEL','PRINC']}
 
 def create_cell_data(mesh,eg,res_group,step_res,res_labels,nEle,
                      vtk_constructor,vtk_cell_type,elementsRead):
@@ -33,7 +34,8 @@ def create_cell_data(mesh,eg,res_group,step_res,res_labels,nEle,
              'PPRES':'ppres',
              'PRES_HEAD':'pres_head',
              'SATUR':'satur',
-             'FLU_VELOC':'flu_veloc'
+             'FLU_VELOC':'flu_veloc',
+             'SMFORCE':'smforce'
              }
     cells = vtk.vtkCellArray()
     EF = vtk.vtkIntArray()
@@ -221,7 +223,7 @@ def get_tstr(t,sf=0,t0=False):
 
 def write_vtu(res,tsteps='all',verbose=True,
               beams=False,vol=False,shells=False,trusses=False,cnt=False,
-              disp=True,outline=False,cut=[],refstep=False):
+              mem=False,disp=True,outline=False,cut=[],refstep=False):
 
     dim = len(res.coords)
     points = vtk.vtkPoints()
@@ -394,6 +396,29 @@ def write_vtu(res,tsteps='all',verbose=True,
                                     step.time,verbose)
             pvdFile.write('<DataSet timestep="%1.2f" group="" part="4" file="%s"/>\n'%
                           (step.time,res.problem_name+'_'+tstr+'_truss.vtu'))
+
+        elif mem:
+            # write vtu for membranes:
+            if 'MEMBRANE' in res.ele_group_labels:
+                ri = res.ele_group_labels.index('MEMBRANE')
+                eg = res.ele_groups[ri]
+                res_labels = res2import['MEMBRANE']
+            else:
+                res_labels = []
+                eg = None
+            if refstep:
+                STEPS = [refstep.mem,step.mem]
+            else:
+                STEPS = step.mem
+            cdata,cells = create_cell_data(mesh,eg,res.mem,step.mem,
+                                           res_labels,res.nMembranes,
+                                           vtk.vtkQuad,vtk.VTK_QUAD,
+                                           res.membranesRead)
+            write_unstructured_grid(res.problem_name+'_'+tstr+'_mem',
+                                    mesh,cdata,res.nMembranes,res.EF,
+                                    step.time,verbose)
+            pvdFile.write('<DataSet timestep="%1.2f" group="" part="1" file="%s"/>\n'%
+                          (step.time,res.problem_name+'_'+tstr+'_mem.vtu'))
     pvdFile.write('</Collection>\n</VTKFile>')
     pvdFile.close()
 

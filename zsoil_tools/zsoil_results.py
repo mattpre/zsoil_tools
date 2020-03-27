@@ -413,7 +413,7 @@ class zsoil_results:
                 self.num_contacts.append(int(v[0]))
                 self.nContacts += 1
                 inel = []
-                for kk in range(4):
+                for kk in range(len(v)-3):
                     inel.append(int(v[3+kk]))
                 self.cnt.inel.append(inel)
                 self.cnt.ps.append(int(v[2]))

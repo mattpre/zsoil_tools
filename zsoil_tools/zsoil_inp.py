@@ -1002,7 +1002,7 @@ class zsoil_inp:
                         while not 'DAMP->' in line:
                             if 'GEOM->' in line and mat.buttons[2]==1:
                                 sect = CrossSection()
-                                sect.def_type = int(line.split()[1])
+                                sect.def_type = int(float(line.split()[1]))
                                 if sect.def_type==1:
                                     line = file.readline()
                                     sect.dimensions = [float(v) for v in line.split()]
