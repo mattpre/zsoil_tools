@@ -35,7 +35,9 @@ def create_cell_data(mesh,eg,res_group,step_res,res_labels,nEle,
              'PRES_HEAD':'pres_head',
              'SATUR':'satur',
              'FLU_VELOC':'flu_veloc',
-             'SMFORCE':'smforce'
+             'SMFORCE':'smforce',
+             'SQFORCE':'sqforce',
+             'SMOMENT':'smoment'
              }
     cells = vtk.vtkCellArray()
     EF = vtk.vtkIntArray()

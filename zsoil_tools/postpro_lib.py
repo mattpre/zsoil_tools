@@ -608,7 +608,7 @@ def contourf(ax,val,crd,output,loc_syst,orig,levels=0):
             levels = np.linspace(min(val1),max(val1),10)
     except:
         pass
-    CS = ax.contourf(X,Z,V,levels,extend='both')
+    CS = ax.contourf(X,Z,V,levels=levels,extend='both')
 
     return CS
 
