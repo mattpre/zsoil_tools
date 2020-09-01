@@ -119,3 +119,17 @@ read distributed masses
 
 v1.3.2
 div
+
+v1.3.3
+zsoil_inp:
+- thickness of shells .ilt
+
+v1.3.4
+zsoil_inp:
+- corrected bug when reading orthotropic shells
+
+v1.3.6
+vtktools:
+- added create_pvd and save_pvd
+- renaming array FORCE in FORCES for beams to avoid conflict with different
+  number of components than for trusses

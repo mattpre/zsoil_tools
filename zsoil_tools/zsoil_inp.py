@@ -642,7 +642,7 @@ class zsoil_inp:
                 line = file.readline()
                 while len(line)>1 and not line[0]=='.':
                     th = Thickness()
-                    th.type = int(line)
+                    th.type = int(line.split()[0])
                     if th.type==0:
                         line = file.readline()
                         th.thick.append(float(line))
@@ -1000,7 +1000,7 @@ class zsoil_inp:
                         line = file.readline()
                         mat.buttons = [int(v) for v in (line.split('=')[1]).split()]
                         while not 'DAMP->' in line:
-                            if 'GEOM->' in line and mat.buttons[2]==1:
+                            if 'GEOM->' in line and mat.buttons[2]==1 and 'Beam' in mat.type:
                                 sect = CrossSection()
                                 sect.def_type = int(float(line.split()[1]))
                                 if sect.def_type==1:
