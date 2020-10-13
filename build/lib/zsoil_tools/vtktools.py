@@ -3,7 +3,7 @@
 ##         Library for plotting zsoil results          ##
 ##              developed by M. Preisig                ##
 ##                 mpreisig@geomod.ch                  ##
-##                      2015-2018                      ##
+##                      2015-2020                      ##
 ##                                                     ##
 #########################################################
 
@@ -14,7 +14,7 @@ from matplotlib import colors
 
 
 res2import = {'NODAL':['DISP_TRA','DISP_ROT','PPRESS','PRES_HEAD','TEMP'],
-              'BEAMS':['FORCE','MOMENT'],
+              'BEAMS':['FORCES','MOMENT'],
               'TRUSSES':['FORCE'],
               'SHELLS':['SMFORCE','SQFORCE','SMOMENT','THICK'],
               'VOLUMICS':['STRESESS','STRESSES','STRAINS','STR_LEVEL','PRINC','FLU_VELOC','SATUR','DAMAGE'],
@@ -35,8 +35,11 @@ def create_cell_data(mesh,eg,res_group,step_res,res_labels,nEle,
              'PRES_HEAD':'pres_head',
              'SATUR':'satur',
              'FLU_VELOC':'flu_veloc',
-             'SMFORCE':'smforce'
-             }
+             'SMFORCE':'smforce',
+             'SQFORCE':'sqforce',
+             'SMOMENT':'smoment',
+             'MOMENT':'moment',
+             'FORCE':'force'}
     cells = vtk.vtkCellArray()
     EF = vtk.vtkIntArray()
     EF.SetNumberOfComponents(1)
@@ -53,8 +56,10 @@ def create_cell_data(mesh,eg,res_group,step_res,res_labels,nEle,
             if eg.res_labels[rt] in res_labels:
                 anArr = vtk.vtkFloatArray()
                 anArr.SetNumberOfComponents(eg.ncomp[rt])
-                for kc,c in enumerate(eg.comp_labels[rt]):
-                    anArr.SetComponentName(kc,c)
+                if eg.ncomp[rt]>1:
+                    for kc,c in enumerate(eg.comp_labels[rt]):
+                        anArr.SetComponentName(kc,c)
+##                        print(c,eg.res_labels[rt])
                 anArr.SetName(eg.res_labels[rt])
                 if eg.res_labels[rt] in rdict:
                     lab = rdict[eg.res_labels[rt]]
@@ -161,7 +166,8 @@ def create_point_data(mesh,nodal,step_nodal,res_labels,nNodes):
 def write_unstructured_grid(filename,mesh,cdata,nEle,EFs,time,verbose,
                             outline=False,cut=[]):
     writer = vtk.vtkXMLUnstructuredGridWriter()
-    writer.SetDataModeToBinary()
+##    writer.SetDataModeToBinary()
+    writer.SetDataModeToAscii()
     writer.SetFileName(filename+'.vtu')
     extract = vtk.vtkExtractCells()
     extract.SetInputData(mesh)
@@ -223,7 +229,7 @@ def get_tstr(t,sf=0,t0=False):
 
 def write_vtu(res,tsteps='all',verbose=True,
               beams=False,vol=False,shells=False,trusses=False,cnt=False,
-              mem=False,disp=True,outline=False,cut=[],refstep=False):
+              mem=False,disp=True,outline=False,cut=[],refstep=False,pvdFile=None):
 
     dim = len(res.coords)
     points = vtk.vtkPoints()
@@ -242,13 +248,6 @@ def write_vtu(res,tsteps='all',verbose=True,
 
     if tsteps=='all':
         tsteps = res.out_steps
-
-    pvdFile = open(res.problem_name+'.pvd','w')
-    pvdFile.write('<?xml version="1.0"?>\n')
-    pvdFile.write('<VTKFile type="Collection" version="0.1"')
-    pvdFile.write(' byte_order="LittleEndian"')
-    pvdFile.write(' compressor="vtkZLibDataCompressor">')
-    pvdFile.write('<Collection>\n')
 
     for kt in tsteps:
         step = res.steps[kt]
@@ -290,8 +289,9 @@ def write_vtu(res,tsteps='all',verbose=True,
             write_unstructured_grid(res.problem_name+'_'+tstr+'_beam',
                                     mesh,cdata,res.nBeams,res.EF,
                                     step.time,verbose)
-            pvdFile.write('<DataSet timestep="%1.2f" group="" part="0" file="%s"/>\n'%
-                          (step.time,res.problem_name+'_'+tstr+'_beam.vtu'))
+            if pvdFile:
+                pvdFile.write('<DataSet timestep="%1.2f" group="" part="0" file="%s"/>\n'%
+                              (step.time,res.problem_name+'_'+tstr+'_beam.vtu'))
 
         elif vol:
             # write vtu for volumics:
@@ -322,8 +322,9 @@ def write_vtu(res,tsteps='all',verbose=True,
                 write_unstructured_grid(res.problem_name+'_'+tstr+'_vol',
                                         mesh,cdata,res.nVolumics,res.EF,
                                         step.time,verbose)
-            pvdFile.write('<DataSet timestep="%1.2f" group="" part="1" file="%s"/>\n'%
-                          (step.time,res.problem_name+'_'+tstr+'_vol.vtu'))
+            if pvdFile:
+                pvdFile.write('<DataSet timestep="%1.2f" group="" part="1" file="%s"/>\n'%
+                              (step.time,res.problem_name+'_'+tstr+'_vol.vtu'))
 
         elif shells:
             # write vtu for shells:
@@ -346,8 +347,9 @@ def write_vtu(res,tsteps='all',verbose=True,
             write_unstructured_grid(res.problem_name+'_'+tstr+'_shell',
                                     mesh,cdata,res.nShells,res.EF,
                                     step.time,verbose)
-            pvdFile.write('<DataSet timestep="%1.2f" group="" part="2" file="%s"/>\n'%
-                          (step.time,res.problem_name+'_'+tstr+'_shell.vtu'))
+            if pvdFile:
+                pvdFile.write('<DataSet timestep="%1.2f" group="" part="2" file="%s"/>\n'%
+                              (step.time,res.problem_name+'_'+tstr+'_shell.vtu'))
 
         elif cnt:
             # write vtu for trusses:
@@ -370,8 +372,9 @@ def write_vtu(res,tsteps='all',verbose=True,
             write_unstructured_grid(res.problem_name+'_'+tstr+'_cnt',
                                     mesh,cdata,res.nContacts,res.EF,
                                     step.time,verbose)
-            pvdFile.write('<DataSet timestep="%1.2f" group="" part="3" file="%s"/>\n'%
-                          (step.time,res.problem_name+'_'+tstr+'_cnt.vtu'))
+            if pvdFile:
+                pvdFile.write('<DataSet timestep="%1.2f" group="" part="3" file="%s"/>\n'%
+                              (step.time,res.problem_name+'_'+tstr+'_cnt.vtu'))
 
         elif trusses:
             # write vtu for trusses:
@@ -394,8 +397,9 @@ def write_vtu(res,tsteps='all',verbose=True,
             write_unstructured_grid(res.problem_name+'_'+tstr+'_truss',
                                     mesh,cdata,res.nTrusses,res.EF,
                                     step.time,verbose)
-            pvdFile.write('<DataSet timestep="%1.2f" group="" part="4" file="%s"/>\n'%
-                          (step.time,res.problem_name+'_'+tstr+'_truss.vtu'))
+            if pvdFile:
+                pvdFile.write('<DataSet timestep="%1.2f" group="" part="4" file="%s"/>\n'%
+                              (step.time,res.problem_name+'_'+tstr+'_truss.vtu'))
 
         elif mem:
             # write vtu for membranes:
@@ -417,8 +421,23 @@ def write_vtu(res,tsteps='all',verbose=True,
             write_unstructured_grid(res.problem_name+'_'+tstr+'_mem',
                                     mesh,cdata,res.nMembranes,res.EF,
                                     step.time,verbose)
-            pvdFile.write('<DataSet timestep="%1.2f" group="" part="1" file="%s"/>\n'%
-                          (step.time,res.problem_name+'_'+tstr+'_mem.vtu'))
+            if pvdFile:
+                pvdFile.write('<DataSet timestep="%1.2f" group="" part="1" file="%s"/>\n'%
+                              (step.time,res.problem_name+'_'+tstr+'_mem.vtu'))
+
+def create_pvd(res):
+    
+    pvdFile = open(res.problem_name+'.pvd','w')
+    pvdFile.write('<?xml version="1.0"?>\n')
+    pvdFile.write('<VTKFile type="Collection" version="0.1"')
+    pvdFile.write(' byte_order="LittleEndian"')
+    pvdFile.write(' compressor="vtkZLibDataCompressor">')
+    pvdFile.write('<Collection>\n')
+
+    return pvdFile
+
+def save_pvd(pvdFile):
+
     pvdFile.write('</Collection>\n</VTKFile>')
     pvdFile.close()
 
@@ -522,7 +541,8 @@ def get_section_diagram(mesh,plane):
         
     return mbd
 
-def get_section(mesh,plane,origin=0,loc_syst=[],matlist=[],EFlist=[],LFlist=[],thlist=[],disp=False):
+def get_section(mesh,plane,origin=0,loc_syst=[],matlist=[],EFlist=[],LFlist=[],
+                thlist=[],disp=False):
 
     if origin==0:
         origin = plane.GetOrigin()

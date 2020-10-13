@@ -642,7 +642,7 @@ class zsoil_inp:
                 line = file.readline()
                 while len(line)>1 and not line[0]=='.':
                     th = Thickness()
-                    th.type = int(line)
+                    th.type = int(line.split()[0])
                     if th.type==0:
                         line = file.readline()
                         th.thick.append(float(line))
@@ -1000,7 +1000,7 @@ class zsoil_inp:
                         line = file.readline()
                         mat.buttons = [int(v) for v in (line.split('=')[1]).split()]
                         while not 'DAMP->' in line:
-                            if 'GEOM->' in line and mat.buttons[2]==1:
+                            if 'GEOM->' in line and mat.buttons[2]==1 and 'Beam' in mat.type:
                                 sect = CrossSection()
                                 sect.def_type = int(float(line.split()[1]))
                                 if sect.def_type==1:
@@ -1431,41 +1431,44 @@ class zsoil_inp:
                 a.SetName(names[ka])
                 vol_arrays.append(a)
 
-            for ke in range(self.nVolumics):
-                if self.exists(self.vol.EF[ke],time):
-                    anEle = vtk.vtkHexahedron()
-                    for kk in range(8):
-                        anEle.GetPointIds().SetId(kk,self.vol.inel[ke][kk]-1)
-                    volumics.InsertNextCell(anEle)
-                    vol_arrays[0].InsertNextTuple1(self.vol.mat[ke])
-                    vol_arrays[1].InsertNextTuple1(self.vol.EF[ke])
-                    vol_arrays[2].InsertNextTuple1(self.vol.LF[ke])
-                    vol_arrays[3].InsertNextTuple1(self.vol.rm1[ke])
-                    vol_arrays[4].InsertNextTuple1(self.vol.rm2[ke])
-            self.vtkVol.SetPoints(points)
-            self.vtkVol.SetCells(vtk.VTK_HEXAHEDRON,volumics)
-            
-            for ke in range(self.nVolumics2D):
-                if self.exists(self.vol.EF[ke],time):
-                    anEle = vtk.vtkQuad()
-                    for kk in range(4):
-                        anEle.GetPointIds().SetId(kk,self.vol.inel[ke][kk]-1)
-                    volumics.InsertNextCell(anEle)
-                    vol_arrays[0].InsertNextTuple1(self.vol.mat[ke])
-                    vol_arrays[1].InsertNextTuple1(self.vol.EF[ke])
-                    vol_arrays[2].InsertNextTuple1(self.vol.LF[ke])
-                    vol_arrays[3].InsertNextTuple1(self.vol.rm1[ke])
-                    vol_arrays[4].InsertNextTuple1(self.vol.rm2[ke])
-            self.vtkVol.SetPoints(points)
-            self.vtkVol.SetCells(vtk.VTK_QUAD,volumics)
+            if self.nVolumics and self.nVolumics2D:
+                print('Error: Currently 2D and 3D volumics cannot be handeled together')
+            if self.nVolumics:
+                for ke in range(self.nVolumics):
+                    if self.exists(self.vol.EF[ke],time):
+                        anEle = vtk.vtkHexahedron()
+                        for kk in range(8):
+                            anEle.GetPointIds().SetId(kk,self.vol.inel[ke][kk]-1)
+                        volumics.InsertNextCell(anEle)
+                        vol_arrays[0].InsertNextTuple1(self.vol.mat[ke])
+                        vol_arrays[1].InsertNextTuple1(self.vol.EF[ke])
+                        vol_arrays[2].InsertNextTuple1(self.vol.LF[ke])
+                        vol_arrays[3].InsertNextTuple1(self.vol.rm1[ke])
+                        vol_arrays[4].InsertNextTuple1(self.vol.rm2[ke])
+                self.vtkVol.SetPoints(points)
+                self.vtkVol.SetCells(vtk.VTK_HEXAHEDRON,volumics)
+            else:
+                for ke in range(self.nVolumics2D):
+                    if self.exists(self.vol.EF[ke],time):
+                        anEle = vtk.vtkQuad()
+                        for kk in range(4):
+                            anEle.GetPointIds().SetId(kk,self.vol.inel[ke][kk]-1)
+                        volumics.InsertNextCell(anEle)
+                        vol_arrays[0].InsertNextTuple1(self.vol.mat[ke])
+                        vol_arrays[1].InsertNextTuple1(self.vol.EF[ke])
+                        vol_arrays[2].InsertNextTuple1(self.vol.LF[ke])
+                        vol_arrays[3].InsertNextTuple1(self.vol.rm1[ke])
+                        vol_arrays[4].InsertNextTuple1(self.vol.rm2[ke])
+                self.vtkVol.SetPoints(points)
+                self.vtkVol.SetCells(vtk.VTK_QUAD,volumics)
             
             data = self.vtkVol.GetCellData()
             for ka in range(5):
                 data.AddArray(vol_arrays[ka])
             
             writer = vtk.vtkXMLUnstructuredGridWriter();
-    ##        writer.SetDataModeToAscii()
-            writer.SetDataModeToBinary()
+            writer.SetDataModeToAscii()
+##            writer.SetDataModeToBinary()
             writer.SetFileName(pathname+'/'+filename+'_T%i_%i'%(time,(time-int(time))*100)+'.vtu')
             writer.SetInputData(self.vtkVol)
             writer.Write()

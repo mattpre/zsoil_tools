@@ -608,7 +608,7 @@ def contourf(ax,val,crd,output,loc_syst,orig,levels=0):
             levels = np.linspace(min(val1),max(val1),10)
     except:
         pass
-    CS = ax.contourf(X,Z,V,levels,extend='both')
+    CS = ax.contourf(X,Z,V,levels=levels,extend='both')
 
     return CS
 
@@ -1040,3 +1040,48 @@ def get_legend(lut,categories={},hfrac=0.8,vpad=0.12,hwratio=4,dpi=96,
     leg = Image.open('legend.png')
 
     return leg
+
+def GetDiscreteColormap(minmax,colormap='ZSoil_maps',ncol=20):
+    import matplotlib.colors as colors
+    from matplotlib.ticker import MultipleLocator
+
+    dval = (minmax[1]-minmax[0])/(ncol-2)
+    nice = math.pow(10,math.floor(math.log10(dval)))
+    if dval/nice<1.4:
+        dround = nice
+    elif dval/nice<3:
+        dround = nice*2
+    elif dval/nice<7:
+        dround = nice*5
+    else:
+        dround = nice*10
+        
+    ticks = MultipleLocator(dround).tick_values(minmax[0],minmax[1])
+    ticks = np.linspace(minmax[0],minmax[1],ncol+1)
+    zsoil = np.array([[41,28,166],
+                      [75,11,244],
+                      [60,138,255],
+                      [61,167,254],
+                      [63,190,252],
+                      [69,215,245],
+                      [83,232,232],
+                      [95,220,194],
+                      [88,226,143],
+                      [81,238,77],
+                      [143,251,64],
+                      [187,251,117],
+                      [216,254,99],
+                      [255,255,0],
+                      [241,231,35],
+                      [239,216,80],
+                      [238,186,77],
+                      [242,139,64],
+                      [254,71,67],
+                      [233,6,1],
+                      [193,80,4],
+                      [167,1,34]])
+    zsoil = np.array([[v[0]/255,v[1]/255,v[2]/255] for v in zsoil])
+    cmap = colors.ListedColormap(zsoil)    
+    norm = colors.BoundaryNorm(ticks,len(ticks))
+
+    return cmap,norm,ticks

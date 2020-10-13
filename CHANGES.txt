@@ -133,3 +133,7 @@ vtktools:
 - added create_pvd and save_pvd
 - renaming array FORCE in FORCES for beams to avoid conflict with different
   number of components than for trusses
+
+v.1.3.7
+postpro_lib:
+- GetDiscreteColormap

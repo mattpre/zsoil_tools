@@ -2379,7 +2379,7 @@ class zsoil_results:
                     step.vol.invar[2].append(p)
                     step.vol.invar[3].append(q)
 
-    def compute_volume(self,inel):
+    def compute_area(self,inel):
         
         x = []
         y = []
@@ -2394,6 +2394,21 @@ class zsoil_results:
             a = a1+a2
 
         return a
+
+    def compute_volume(self,inel):
+        
+        vv = numpy.array([[self.coords[kc][inel[kk]-1]-self.coords[kc][inel[0]-1] for kc in range(3)] for kk in [1,2,5]])
+        a = numpy.linalg.det(vv)
+        vv = numpy.array([[self.coords[kc][inel[kk]-1]-self.coords[kc][inel[0]-1] for kc in range(3)] for kk in [2,3,7]])
+        a += numpy.linalg.det(vv)
+        vv = numpy.array([[self.coords[kc][inel[kk]-1]-self.coords[kc][inel[0]-1] for kc in range(3)] for kk in [4,5,7]])
+        a += numpy.linalg.det(vv)
+        vv = numpy.array([[self.coords[kc][inel[kk]-1]-self.coords[kc][inel[0]-1] for kc in range(3)] for kk in [2,5,7]])
+        a += numpy.linalg.det(vv)
+        vv = numpy.array([[self.coords[kc][inel[kk]-1]-self.coords[kc][inel[2]-1] for kc in range(3)] for kk in [5,6,7]])
+        a += numpy.linalg.det(vv)
+
+        return a*0.5
 
     def give_beams(self,x0,y0,x1,y1):
         sys.path.append('D:/Mandats/python/utils')
