@@ -110,6 +110,7 @@ class ZSmaterial:
         self.damp = {}
 
     def read_Data(self,data):
+        print('read_Data')
         continuum = ['Elastic','HS-small strain stiffness','Mohr-Coulomb']
         
         lines = data[0]

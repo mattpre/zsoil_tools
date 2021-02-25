@@ -22,12 +22,16 @@ from struct import unpack
 from struct import unpack_from
 import vtk
 
-face_nds = [[0,1,2,3],
-            [0,1,5,4],
-            [0,4,7,3],
-            [1,2,6,5],
-            [2,3,7,6],
-            [4,5,6,7]]
+face_inel = [[0,1,2,3],
+             [0,1,5,4],
+             [0,4,7,3],
+             [1,2,6,5],
+             [2,3,7,6],
+             [4,5,6,7]]
+edge_nds = [[0,1],
+            [1,2],
+            [2,3],
+            [3,0]]
 
 def eformat(f, prec, exp_digits):
     s = "%.*e"%(prec, f)
@@ -55,6 +59,8 @@ class ele_info:
         self.loc_syst = []
         self.center = [[],[],[]]
         self.dir = []
+        self.type = []
+        self.type_dict = {0:'Truss',1:'Anchor'}
 
 class dummy:
     def __init__(self):
@@ -338,6 +344,7 @@ class zsoil_inp:
         self.pathname = pathname
         self.problem_name = problem_name
         self.analysis_type = -1
+        self.analysis_type_dict = {2:'planestrain'}
 
         astep = time_step()
         astep.time = 0
@@ -348,7 +355,8 @@ class zsoil_inp:
         self.nNodes = 0
         self.nVolumics = 0
         self.nVolumics2D = 0
-        self.nContacts = 0
+        self.nContactsStruct = 0
+        self.nContactsCont = 0
         self.nBeams = 0
         self.nShells = 0
         self.nThickShells = 0
@@ -387,10 +395,12 @@ class zsoil_inp:
         self.nNodalMasses = 0
         self.nSurfaceMasses = 0
         self.nFiberMaterials = 0
+        self.nPBCs = 0
 
         self.coords = [[],[],[]]
         self.vol = ele_info()
         self.cnt = ele_info()
+        self.cntcont = ele_info()
         self.beam = ele_info()
         self.shell = ele_info()
         self.thickshell = ele_info()
@@ -413,11 +423,15 @@ class zsoil_inp:
         self.reinf_set_per_beam = []
         self.seepages = []
         self.thicknesses = []
+        self.PBCs = []
+
+        self.DRMext = []
+        self.DRMint = []
 
         self.vtkVol = 0
         self.vtkShell = 0
 
-    def read_inp(self,sections=['ing','i0g','ibg','ilg','ics','inb',
+    def read_inp(self,sections=['ing','i0g','ibg','ilg','ics','icg','inb',
                                 'pob','gob','inl','ibf','gsl','itg',
                                 'brc','ipg'],
                  debug=False):
@@ -426,7 +440,8 @@ class zsoil_inp:
         # 'i0g': volumics
         # 'ibg': beams
         # 'ilg': shells
-        # 'ics': contacts
+        # 'ics': contacts structures
+        # 'icg': contacts continuum
         # 'inb': BC's (part 1)
         # 'pob': points
         # 'gob': geometrical objects (lines, polylines, arcs, circles)
@@ -454,8 +469,11 @@ class zsoil_inp:
         self.nLF = int(line.split()[4]) # not correct in v16.03
         self.nThickShells = int(line.split()[24])
         self.nShells += self.nThickShells
+        self.nTrusses = int(line.split()[22])
+        self.nPBC = int(line.split()[13])
+        self.nContactsCont = int(line.split()[25])
         line = file.readline()
-        self.nContacts = int(line.split()[1])
+        self.nContactsStruct = int(line.split()[1])
         self.nShells += int(line.split()[14])
         self.nBeams = int(line.split()[8])
         self.nBeamLoads = int(line.split()[8])
@@ -582,7 +600,11 @@ class zsoil_inp:
                     print('reading itg')
                 for ke in range(self.nTrusses):
                     line = file.readline()
-                    if 'TRS2' in line:
+                    if 'TRS2' in line or 'LNK2' in line:
+                        if 'LNK2' in line:
+                            self.truss.type.append(1)
+                        else:
+                            self.truss.type.append(0)
                         v = line.split()
                         inel = []
                         for kk in range(2):
@@ -592,12 +614,14 @@ class zsoil_inp:
                         line = file.readline()
                         v = line.split()
                         self.truss.mat.append(int(v[0]))
-                        self.truss.EF.append(int(v[1]))
-                        self.truss.LF.append(int(v[2]))
-                        self.truss.rm1.append(int(v[3]))
-                        self.truss.rm2.append(int(v[4]))
+                        self.truss.EF.append(int(v[3]))
+                        self.truss.LF.append(int(v[4]))
+                        self.truss.rm1.append(int(v[1]))
+                        self.truss.rm2.append(int(v[2]))
                         file.readline()
                         self.num_trusses.append(int(v[0]))
+                        if self.truss.type[-1]==1:
+                            file.readline()
             elif '.ilg' in line and 'ilg' in sections:
                 if debug:
                     print('reading ilg')
@@ -659,7 +683,7 @@ class zsoil_inp:
                 self.cnt.doublesided = []
                 self.cnt.side_pos = []
                 self.cnt.side_neg = []
-                for ke in range(self.nContacts):
+                for ke in range(self.nContactsStruct):
                     line = file.readline()
                     if 'C_Q4' in line:
                         v = line.split()
@@ -695,6 +719,7 @@ class zsoil_inp:
                             center[2] += self.coords[2][kn-1]/4
                         line = file.readline()
                         line = file.readline()
+                        line = file.readline()
                         v = line.split()
                         mat = [int(v[1])]
                         EF = [int(v[2])]
@@ -723,19 +748,93 @@ class zsoil_inp:
                         self.cnt.center[1].append(center[1])
                         self.cnt.center[2].append(center[2])
                         self.num_contacts.append(int(v[1]))
+                    elif 'C_L2' in line:
+                        # tested for cnt on beams only, with negative side active
+                        v = line.split()
+                        self.cnt.number.append(int(v[3]))
+                            
+                        line = file.readline()
+                        line = file.readline()
+                        v = line.split()
+                        volele = [int(v[0])]
+                        volface = [int(v[1])]
+                        
+                        line = file.readline()
+                        v = line.split()
+                        inel = [[]]
+                        for kk in range(4):
+                            inel[0].append(int(v[kk]))
+                        center = [0,0]
+                        for kn in inel[0][:2]:
+                            center[0] += self.coords[0][kn-1]/2
+                            center[1] += self.coords[1][kn-1]/2
+                        line = file.readline()
+                        line = file.readline()
+                        v = line.split()
+                        mat = [int(v[1])]
+                        EF = [int(v[2])]
+                        LF = [int(v[3])]
+                        self.cnt.inel.append(inel)
+                        self.cnt.mat.append(mat)
+                        self.cnt.EF.append(EF)
+                        self.cnt.LF.append(LF)
+                        self.cnt.center[0].append(center[0])
+                        self.cnt.center[1].append(center[1])
+                        self.num_contacts.append(int(v[1]))
                     else:
                         print('Error: check reading of contacts')
+                        
+            elif '.icg' in line and 'icg' in sections:
+                if debug:
+                    print('reading icg')
+                self.cntcont.type = [] # 0 for continuity w/ p 1 for contact, 2 for continuity w/out p
+                for ke in range(self.nContactsCont):
+                    line = file.readline()
+                    if 'C_L2' in line:
+                        v = line.split()
+                        self.cntcont.number.append(int(v[1])) # to be tested
+                        volele = [int(v[3])]
+                        volface = [int(v[4])]
+                            
+                        line = file.readline()
+                        v = line.split()
+                        inel = []
+                        for kk in range(4):
+                            inel.append(int(v[kk]))
+                        center = [0,0]
+                        for kn in inel[:2]:
+                            center[0] += self.coords[0][kn-1]/2
+                            center[1] += self.coords[1][kn-1]/2
+                        line = file.readline()
+                        line = file.readline()
+                        line = file.readline()
+                        v = line.split()
+                        self.cntcont.inel.append(inel)
+                        self.cntcont.type.append(int(v[0]))
+                        self.cntcont.mat.append(int(v[1]))
+                        self.cntcont.EF.append(int(v[2]))
+                        self.cntcont.LF.append(int(v[3]))
+                        self.cntcont.center[0].append(center[0])
+                        self.cntcont.center[1].append(center[1])
+##                        self.num_contacts.append(int(v[1]))
+                    else:
+                        print('Error: check reading of contacts')
+
             elif '.inb' in line and 'inb' in sections:
                 if debug:
                     print('reading inb')
+##                if self.analysis_type==2:
+##                    indices = [3,7,11]
+##                else:
+                indices = [3,8,13]
                 for kn in range(self.nBCs):
                     line = file.readline()
                     v = line.split()
-                    if v[3]=='1':
+                    if v[indices[0]]=='1':
                         self.BCs[0].append(int(v[1]))
-                    if v[8]=='1':
+                    if v[indices[1]]=='1':
                         self.BCs[1].append(int(v[1]))
-                    if v[13]=='1':
+                    if v[indices[2]]=='1':
                         self.BCs[2].append(int(v[1]))
             elif '.pob' in line and 'pob' in sections:
                 if debug:
@@ -827,13 +926,17 @@ class zsoil_inp:
                         line = file.readline()
                         v = line.split()
                         sl.data = [float(val) for val in v]
+                        if self.analysis_type==2:
+                            face_inel = edge_nds
+                        else:
+                            face_inel = face_nds
                         for kkf in range(nFaces):
                             v = file.readline().split()
                             kele = int(v[0])
                             kf = int(v[1])
                             if kele in self.num_volumics:
                                 inel0 = self.vol.inel[self.num_volumics.index(kele)]
-                                inel = [inel0[kk] for kk in face_nds[kf-1]]
+                                inel = [inel0[kk] for kk in face_inel[kf-1]]
                             elif kele in self.num_shells:
                                 inel = self.shell.inel[self.num_shells.index(kele)]
                             sl.faces.append([kele,inel])
@@ -851,13 +954,17 @@ class zsoil_inp:
                         sl.dir = int(v[0])
                         sl.data = [float(val) for val in v[1:]]
                         faces = []
+                        if self.analysis_type==2:
+                            face_inel = edge_nds
+                        else:
+                            face_inel = face_nds
                         for kkf in range(nFaces):
                             v = file.readline().split()
                             kele = int(v[0])
                             kf = int(v[1])
                             if kele in self.num_volumics:
                                 inel0 = self.vol.inel[self.num_volumics.index(kele)]
-                                inel = [inel0[kk] for kk in face_nds[kf-1]]
+                                inel = [inel0[kk] for kk in face_inel[kf-1]]
                             elif kele in self.num_shells:
                                 inel = self.shell.inel[self.num_shells.index(kele)]
                             sl.faces.append([kele,inel])
@@ -954,13 +1061,17 @@ class zsoil_inp:
                     fg = FaceGroup()
                     fg.nFaces = int(file.readline())
                     fg.name = file.readline()[:-1]
+                    if self.analysis_type==2:
+                        face_inel = edge_nds
+                    else:
+                        face_inel = face_nds                    
                     for kf in range(fg.nFaces):
                         line = file.readline()
                         v = line.split()
                         kele = int(v[0])
                         if kele in self.num_volumics:
                             inel0 = self.vol.inel[self.num_volumics.index(kele)]
-                            inel = [inel0[kk] for kk in face_nds[int(v[1])-1]]
+                            inel = [inel0[kk] for kk in face_inel[int(v[1])-1]]
                         elif kele in self.num_shells:
                             inel = self.shell.inel[self.num_shells.index(kele)]
                         fg.element_faces.append((int(v[0]),int(v[1]),inel))
@@ -986,6 +1097,41 @@ class zsoil_inp:
                         file.readline()
                         self.seepages.append(seep)
                         self.num_seepage.append(int(v[0]))
+            elif '.drz' in line:
+                if debug:
+                    print('reading drz (interior elements of DRM-domain)')
+                line = file.readline()
+                nEle = 0
+                if len(line)>1:
+                    nEle = int(line)
+                for kl in range(nEle):
+                    self.DRMint.append(int(file.readline()))
+            elif '.dre' in line:
+                if debug:
+                    print('reading dre (exterior elements of DRM-domain)')
+                line = file.readline()
+                nEle = 0
+                if len(line)>1:
+                    nEle = int(line)
+                for kl in range(nEle):
+                    self.DRMext.append(int(file.readline()))
+            elif '.pbc' in line:
+                if debug:
+                    print('reading pbc (periodic boundary conditions)')
+                for kbc in range(self.nPBC):
+                    line = file.readline()
+                    nNodePairs = int(int(line.split()[2])/2)
+                    aPBC = [nNodePairs]
+                    line = file.readline() # EFs
+                    line = file.readline() # ?
+                    line = file.readline() # Name
+                    aPBC.append(line[:-1])
+                    aPBC.append([])
+                    for kn in range(nNodePairs):
+                        v = file.readline().split()
+                        aPBC[2].append((int(v[0]),int(v[1])))
+                    self.PBCs.append(aPBC)
+                
             elif 'NUM_MATERIALS' in line:
                 if len(self.materials)==0:  # standard materials
                     self.nMaterials = int(line.split('=')[1])
@@ -1008,12 +1154,19 @@ class zsoil_inp:
                                     sect.dimensions = [float(v) for v in line.split()]
                                     line = file.readline()
                                     sect.values = [float(v) for v in line.split()]
-                                elif sect.def_type==0:
+                                elif sect.def_type==0: # for cs of type "profiles"
                                     line = file.readline()
                                     line = file.readline()
                                     sect.name = line[:-1]
                                     line = file.readline()
                                     sect.values = [float(v) for v in line.split()]
+                                elif sect.def_type==2: # for cs of type "values"
+                                    line = file.readline()
+                                    sect.values = [float(v) for v in line.split()]
+                                mat.cross_section = sect
+                            elif 'GEOM->' in line and mat.buttons[2]==1 and 'Truss' in mat.type:
+                                sect = CrossSection()
+                                sect.values = [float(line.split()[1])]
                                 mat.cross_section = sect
                             elif 'GEOM->' in line and mat.type=='Shell Layered' and mat.buttons[6]==1:
                                 sect = ShellSection()
