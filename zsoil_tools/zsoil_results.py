@@ -248,9 +248,14 @@ class time_step:
         self.mem = mem()
 
 class zsoil_results:
-    def __init__(self,pathname,problem_name):
+    def __init__(self,pathname,problem_name,verbose_level=0):
         self.pathname = pathname
         self.problem_name = problem_name
+        # verbose_level = 0: print every step read
+        # verbose_level = 1: print every 100th step read
+        # verbose_level = 2: suppress reading file messages
+        # verbose_level = 3: suppress error messages
+        self.verbose_level = verbose_level
         self.ele_group_labels = []
         self.ele_groups = []
         self.nEleGroups = 0
@@ -331,7 +336,8 @@ class zsoil_results:
         return self.steps[kt]
 
     def read_his(self):
-        print(self.pathname + '/' + self.problem_name + '.his')
+        if self.verbose_level<2:
+            print(self.pathname + '/' + self.problem_name + '.his')
         file = open(self.pathname + '/' + self.problem_name + '.his')
 
         lcount = 0
@@ -363,7 +369,8 @@ class zsoil_results:
             self.logfile.readTstep(kt)
 
     def read_dat(self):
-        print(self.pathname + '/' + self.problem_name + '.dat')
+        if self.verbose_level<2:
+            print(self.pathname + '/' + self.problem_name + '.dat')
         file = open(self.pathname + '/' + self.problem_name + '.dat')
         lines = file.readlines()
 
@@ -683,7 +690,8 @@ class zsoil_results:
         
 
     def read_rcf(self):
-        print(self.pathname + '/' + self.problem_name + '.rcf')
+        if self.verbose_level<2:
+            print(self.pathname + '/' + self.problem_name + '.rcf')
         file = open(self.pathname + '/' + self.problem_name + '.rcf')
 
         line = 'dummy'
@@ -754,7 +762,8 @@ class zsoil_results:
         file.close()
 
     def read_lay(self):
-        print(self.pathname + '/' + self.problem_name + '.lay')
+        if self.verbose_level<2:
+            print(self.pathname + '/' + self.problem_name + '.lay')
         file = open(self.pathname + '/' + self.problem_name + '.lay')
 
         line = 'dummy'
@@ -791,7 +800,7 @@ class zsoil_results:
         file.close()
 
     def read_s00(self,arg=[],res_type='displacements'):
-        if '/v+' in arg:
+        if '/v+' in arg or self.verbose_level==1:
             verbose = False
             printN = 100
         elif '/v' in arg:
@@ -801,29 +810,37 @@ class zsoil_results:
             elif arg[:2]=='/v':
                 verbose = False
                 printN = int(arg[2:])
+        elif self.verbose_level<2:
+            verbose = False
+            printN = 1
         else:
             verbose = False
             printN = 1
             
         if res_type=='displacements':
             # read nodal results:
-            print('reading nodal results:')
+            if self.verbose_level<2:
+                print('reading nodal results:')
             f = open(self.pathname + '/' + self.problem_name + '.s00', "rb")
         elif res_type=='reactions':
             # read nodal reactions:
-            print('reading nodal reactions:')
+            if self.verbose_level<2:
+                print('reading nodal reactions:')
             f = open(self.pathname + '/' + self.problem_name + '.r00', "rb")
         elif res_type=='accelerations':
             # read nodal accelerations:
-            print('reading nodal accelerations:')
+            if self.verbose_level<2:
+                print('reading nodal accelerations:')
             f = open(self.pathname + '/' + self.problem_name + '.a00', "rb")
         elif res_type=='velocities':
             # read nodal velocities:
-            print('reading nodal velocities:')
+            if self.verbose_level<2:
+                print('reading nodal velocities:')
             f = open(self.pathname + '/' + self.problem_name + '.v00', "rb")
         elif res_type=='init':
             # read initial displacements:
-            print('reading initial displacements:')
+            if self.verbose_level<2:
+                print('reading initial displacements:')
             f = open(self.pathname + '/' + self.problem_name + '.uro', "rb")
 
         kkt = -1
@@ -972,7 +989,8 @@ class zsoil_results:
             verbose = False
             printN = 1
         # read VOLUMICS:
-        print('reading volumic results:')
+        if self.verbose_level<2:
+            print('reading volumic results:')
         gind = self.ele_group_labels.index('VOLUMICS')
 
         egroup = self.ele_groups[gind]
@@ -1157,7 +1175,8 @@ class zsoil_results:
             verbose = False
             printN = 1
         # read SHELLS:
-        print('reading shell results:')
+        if self.verbose_level<2:
+            print('reading shell results:')
         gind = self.ele_group_labels.index('SHELLS')
 
         egroup = self.ele_groups[gind]
@@ -1277,7 +1296,8 @@ class zsoil_results:
 
     def read_L02(self,arg=[]):
         if not 'SHELLS' in self.ele_group_labels:
-            print('No shells to be read.')
+            if self.verbose_level<3:
+                print('No shells to be read.')
             return 0
 
         
@@ -1295,7 +1315,8 @@ class zsoil_results:
             verbose = False
             printN = 1
         # read SHELLS:
-        print('reading non-linear shell results:')
+        if self.verbose_level<2:
+            print('reading non-linear shell results:')
         gind = self.ele_group_labels_nl.index('SHELLS')
 
         for kt in range(len(self.steps)):
@@ -1401,7 +1422,8 @@ class zsoil_results:
         
     def read_s03(self,arg=[]):
         if not 'TRUSSES' in self.ele_group_labels:
-            print('No trusses to be read.')
+            if self.verbose_level<3:
+                print('No trusses to be read.')
             return 0
 
         if '/v+' in arg:
@@ -1418,7 +1440,8 @@ class zsoil_results:
             verbose = False
             printN = 1
         # read Trusses:
-        print('reading truss results:')
+        if self.verbose_level<2:
+            print('reading truss results:')
         gind = self.ele_group_labels.index('TRUSSES')
 
         egroup = self.ele_groups[gind]
@@ -1480,7 +1503,8 @@ class zsoil_results:
         
     def read_s04(self,arg=[]):
         if not 'BEAMS' in self.ele_group_labels:
-            print('No beams to be read.')
+            if self.verbose_level<3:
+                print('No beams to be read.')
             return 0
 
         if '/v+' in arg:
@@ -1497,7 +1521,8 @@ class zsoil_results:
             verbose = False
             printN = 1
         # read Beams:
-        print('reading beam results:')
+        if self.verbose_level<2:
+            print('reading beam results:')
         gind = self.ele_group_labels.index('BEAMS')
 
         egroup = self.ele_groups[gind]
@@ -1645,7 +1670,8 @@ class zsoil_results:
 
     def read_L04(self,arg=[],minmax=False):
         if not 'BEAMS' in self.ele_group_labels_nl:
-            print('No beams to be read.')
+            if self.verbose_level<3:
+                print('No beams to be read.')
             return 0
 
         maxmin = False
@@ -1663,7 +1689,8 @@ class zsoil_results:
             verbose = False
             printN = 1
         # read Beams:
-        print('reading non-linear beam results:')
+        if self.verbose_level<2:
+            print('reading non-linear beam results:')
         gind = self.ele_group_labels_nl.index('BEAMS')
 
         for kt in self.out_steps:
@@ -1777,7 +1804,8 @@ class zsoil_results:
         
     def read_s07(self,arg=[]):
         if not 'CONTACT' in self.ele_group_labels:
-            print('No contacts to be read.')
+            if self.verbose_level<3:
+                print('No contacts to be read.')
             return 0
 
         if '/v+' in arg:
@@ -1849,7 +1877,8 @@ class zsoil_results:
                 self.cnt.loc_syst.append(0)
             
         # read Contact:
-        print('reading contact results:')
+        if self.verbose_level<2:
+            print('reading contact results:')
         gind = self.ele_group_labels.index('CONTACT')
 
         egroup = self.ele_groups[gind]
@@ -1980,7 +2009,8 @@ class zsoil_results:
 
     def read_s15(self,arg=[]):
         if not 'MEMBRANE' in self.ele_group_labels:
-            print('No membranes to be read.')
+            if self.verbose_level<3:
+                print('No membranes to be read.')
             return 0
 
         if '/v+' in arg:
@@ -1997,7 +2027,8 @@ class zsoil_results:
             verbose = False
             printN = 1
         # read MEMBRANES:
-        print('reading membrane results:')
+        if self.verbose_level<2:
+            print('reading membrane results:')
         gind = self.ele_group_labels.index('MEMBRANE')
 
         egroup = self.ele_groups[gind]
@@ -2103,7 +2134,8 @@ class zsoil_results:
 
     def read_eda(self):
         file = open(self.pathname + '/' + self.problem_name + '.eda')
-        print(self.pathname + '/' + self.problem_name + '.eda')
+        if self.verbose_level<2:
+            print(self.pathname + '/' + self.problem_name + '.eda')
 
         for line in iter(lambda: file.readline(), ""):
             if 'MATERIAL PROPERTIES' in line:
@@ -2302,16 +2334,18 @@ class zsoil_results:
 
         fo.close()
 
-    def compute_princ_stresses(self,ele_type,steps=0):
+    def compute_princ_stresses(self,ele_type,steps=0,elist=0):
         if steps==0:
             steps = range(len(self.steps)-1)
+        if elist==0:
+            elist = range(len(self.nVolumics))
         if 'vol' in ele_type:
             eg = self.ele_groups[self.ele_group_labels.index('VOLUMICS')]
             eg.res_labels.append('PRINC')
             eg.ncomp.append(3)
             eg.comp_labels.append(['1','2','3'])
             for kt in steps:
-                if len(steps)*self.nVolumics>1e6:
+                if len(steps)*len(elist)>1e6:
                     if steps.index(kt)%int(len(steps)/10)==0:
                         print('computation of principal stresses - %i %%'%(1.0*steps.index(kt)/len(steps)*100))
                 step = self.steps[kt]
@@ -2323,7 +2357,7 @@ class zsoil_results:
                     sxz = step.vol.stress[4]
                     syz = step.vol.stress[5]
                 step.vol.princ = [[],[],[]]
-                for kele in range(self.nVolumics):
+                for kele in elist:
                     if '2D' in ele_type:
                         mat = numpy.array([[sxx[kele],sxy[kele],0],
                                            [sxy[kele],syy[kele],0],

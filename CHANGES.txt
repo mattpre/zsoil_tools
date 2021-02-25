@@ -137,3 +137,12 @@ vtktools:
 v.1.3.7
 postpro_lib:
 - GetDiscreteColormap
+
+v1.3.8
+read_results:
+- compute_princ_stresses: element list as argument
+- verbose level
+26/01/2021:
+read_inp:
+- reading DRM data
+- reading periodic bcs
