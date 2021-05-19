@@ -873,7 +873,7 @@ class zsoil_results:
             if kt in read_steps:
                 nbytes = 0
                 kkt += 1
-                if verbose==False:
+                if not (verbose==True or self.verbose_level>=2):
                     if kkt%printN==0:
                         print('reading step ' + str(kt+1) + ' out of ' + str(self.nSteps))
                 step = self.give_time_step(kt)
@@ -1011,7 +1011,7 @@ class zsoil_results:
         for kt in range(len(self.steps)):
             if kt in self.out_steps:
                 kkt += 1
-                if verbose==False:
+                if not (verbose==True or self.verbose_level>=2):
                     if kkt%printN==0:
                         print('reading step ' + str(kt+1) + ' out of ' + str(self.nSteps))
                 step = self.give_time_step(kt)
@@ -1190,7 +1190,7 @@ class zsoil_results:
         for kt in range(len(self.steps)):
             if kt in self.out_steps:
                 kkt += 1
-                if verbose==False:
+                if not (verbose==True or self.verbose_level>=2):
                     if kkt%printN==0:
                         print('reading step ' + str(kt+1) + ' out of ' + str(self.nSteps))
                 step = self.give_time_step(kt)
@@ -1339,7 +1339,7 @@ class zsoil_results:
         for kt in range(len(self.steps)):
             if kt in self.out_steps:
                 kkt += 1
-                if verbose==False:
+                if not (verbose==True or self.verbose_level>=2):
                     if kkt%printN==0:
                         print('reading step ' + str(kt+1) + ' out of ' + str(self.nSteps))
                 step = self.give_time_step(kt)
@@ -1455,7 +1455,7 @@ class zsoil_results:
         for kt in range(len(self.steps)):
             if kt in self.out_steps:
                 kkt += 1
-                if verbose==False:
+                if not (verbose==True or self.verbose_level>=2):
                     if kkt%printN==0:
                         print('reading step ' + str(kt+1) + ' out of ' + str(self.nSteps))
                 step = self.give_time_step(kt)
@@ -1535,7 +1535,7 @@ class zsoil_results:
         for kt in range(len(self.steps)):
             if kt in self.out_steps:
                 kkt += 1
-                if verbose==False:
+                if not (verbose==True or self.verbose_level>=2):
                     if kkt%printN==0:
                         print('reading step ' + str(kt+1) + ' out of ' + str(self.nSteps))
                 step = self.give_time_step(kt)
@@ -1712,7 +1712,7 @@ class zsoil_results:
         for kt in range(len(self.steps)):
             if kt in self.out_steps:
                 kkt += 1
-                if verbose==False:
+                if not (verbose==True or self.verbose_level>=2):
                     if kkt%printN==0:
                         print('reading step ' + str(kt+1) + ' out of ' + str(self.nSteps))
                 step = self.give_time_step(kt)
@@ -1893,7 +1893,7 @@ class zsoil_results:
         for kt in range(len(self.steps)):
             if kt in self.out_steps:
                 kkt += 1
-                if verbose==False:
+                if not (verbose==True or self.verbose_level>=2):
                     if kkt%printN==0:
                         print('reading step ' + str(kt+1) + ' out of ' + str(self.nSteps))
                 step = self.give_time_step(kt)

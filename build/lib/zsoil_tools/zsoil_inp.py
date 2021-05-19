@@ -22,12 +22,12 @@ from struct import unpack
 from struct import unpack_from
 import vtk
 
-face_inel = [[0,1,2,3],
-             [0,1,5,4],
-             [0,4,7,3],
-             [1,2,6,5],
-             [2,3,7,6],
-             [4,5,6,7]]
+face_nds = [[0,1,2,3],
+            [0,1,5,4],
+            [0,4,7,3],
+            [1,2,6,5],
+            [2,3,7,6],
+            [4,5,6,7]]
 edge_nds = [[0,1],
             [1,2],
             [2,3],

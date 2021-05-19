@@ -146,3 +146,11 @@ read_results:
 read_inp:
 - reading DRM data
 - reading periodic bcs
+
+v1.3.9
+zsoil_inp:
+bugfix reading 3d surface loads
+
+v1.3.10
+vtktools:
+don't use refstep for thickness of shells

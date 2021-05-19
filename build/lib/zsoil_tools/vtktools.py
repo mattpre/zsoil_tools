@@ -66,42 +66,40 @@ def create_cell_data(mesh,eg,res_group,step_res,res_labels,nEle,
                 else:
                     lab = eg.res_labels[rt]#.lower()
                 arrays.append([anArr,lab,eg.ncomp[rt]])
-    if type(step_res)==list:
-        step0_res = step_res[0]
-        step1_res = step_res[1]
-        for ke in range(nEle):
-            ele = vtk_constructor()
-            ids = ele.GetPointIds()
-            inel = res_group.inel[ke]
-            for kk,kn in enumerate(inel):
-                ids.SetId(kk,kn-1)
-            cells.InsertNextCell(ele)
-            EF.InsertNextTuple1(res_group.EF[ke])
-            LF.InsertNextTuple1(res_group.LF[ke])
-            mat.InsertNextTuple1(res_group.mat[ke])
-            for anArr in arrays:
-                aRes0 = getattr(step0_res,anArr[1])
-                aRes1 = getattr(step1_res,anArr[1])
-                try:
-                    if anArr[2]==1:
-                        anArr[0].InsertNextTuple1(aRes1[ke]-aRes0[ke])
-                    else:
-                        anArr[0].InsertNextTuple([aRes1[kcomp][ke]-aRes0[kcomp][ke] for kcomp in range(len(aRes1))])
-                except:
-                    print(anArr)
-                    print('Results for %s have not been read for the requested step.'%(eg.type))
-    else:
-        for ke in range(nEle):
-            ele = vtk_constructor()
-            ids = ele.GetPointIds()
-            inel = res_group.inel[ke]
-            for kk,kn in enumerate(inel):
-                ids.SetId(kk,kn-1)
-            cells.InsertNextCell(ele)
-            EF.InsertNextTuple1(res_group.EF[ke])
-            LF.InsertNextTuple1(res_group.LF[ke])
-            mat.InsertNextTuple1(res_group.mat[ke])
-            for anArr in arrays:
+    for ke in range(nEle):
+        ele = vtk_constructor()
+        ids = ele.GetPointIds()
+        inel = res_group.inel[ke]
+        for kk,kn in enumerate(inel):
+            ids.SetId(kk,kn-1)
+        cells.InsertNextCell(ele)
+        EF.InsertNextTuple1(res_group.EF[ke])
+        LF.InsertNextTuple1(res_group.LF[ke])
+        mat.InsertNextTuple1(res_group.mat[ke])
+        for anArr in arrays:
+            if type(step_res)==list:
+                if 'thick' in anArr[1]:
+                    aRes1 = getattr(step_res[1],anArr[1])
+                    try:
+                        if anArr[2]==1:
+                            anArr[0].InsertNextTuple1(aRes1[ke])
+                        else:
+                            anArr[0].InsertNextTuple([comp[ke] for comp in aRes1])
+                    except:
+                        print(anArr)
+                        print('Results for %s have not been read for the requested step.'%(eg.type))
+                else:
+                    aRes0 = getattr(step_res[0],anArr[1])
+                    aRes1 = getattr(step_res[1],anArr[1])
+                    try:
+                        if anArr[2]==1:
+                            anArr[0].InsertNextTuple1(aRes1[ke]-aRes0[ke])
+                        else:
+                            anArr[0].InsertNextTuple([aRes1[kcomp][ke]-aRes0[kcomp][ke] for kcomp in range(len(aRes1))])
+                    except:
+                        print(anArr)
+                        print('Results for %s have not been read for the requested step.'%(eg.type))
+            else:
                 aRes = getattr(step_res,anArr[1])
                 try:
                     if anArr[2]==1 and len(aRes)==nEle:
@@ -1129,5 +1127,4 @@ def compute_volume(pts):
         a2 = 0.5*abs((x[0]-x[3])*(y[2]-y[0])-(x[0]-x[2])*(y[3]-y[0]))
         a = a1+a2
 
-    return a   
-        
+    return a
