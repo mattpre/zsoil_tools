@@ -1943,10 +1943,13 @@ class zsoil_results:
                                     step.cnt.stress[1][ke][kgp] = ff[1,0]
                                     step.cnt.stress[2][ke][kgp] = vals[ind+2]
                                     ind += 3
-                                elif self.cnt.type[ke]==0:
+                                elif self.cnt.type[ke] in [0,2]:
                                     step.cnt.stress[0][ke][kgp] = vals[ind]
                                     step.cnt.stress[1][ke][kgp] = vals[ind+1]
                                     ind += 2
+                                elif self.cnt.type[ke] in [3]:
+                                    step.cnt.stress[0][ke][kgp] = vals[ind]
+                                    ind += 1
                                 else:
                                     step.cnt.stress[0][ke][kgp] = vals[ind]
                                     step.cnt.stress[1][ke][kgp] = vals[ind+1]
