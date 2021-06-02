@@ -1887,7 +1887,7 @@ class zsoil_results:
         f = open(self.pathname + '/' + self.problem_name + '.s07', "rb")
         k = 0
 
-        nGPdict = {0:2,1:4,2:2,3:1}
+        nGPdict = {0:2,1:4,2:2,3:1} # 0: 2D, 1: 3D plane contact, 2: pile/anchor, 3: pile tip
         byte = 'dummy'
         kkt = -1
         for kt in range(len(self.steps)):
@@ -1943,13 +1943,15 @@ class zsoil_results:
                                     step.cnt.stress[1][ke][kgp] = ff[1,0]
                                     step.cnt.stress[2][ke][kgp] = vals[ind+2]
                                     ind += 3
-                                elif self.cnt.type[ke] in [0,2]:
+                                elif self.cnt.type[ke] in [0]:
                                     step.cnt.stress[0][ke][kgp] = vals[ind]
                                     step.cnt.stress[1][ke][kgp] = vals[ind+1]
                                     ind += 2
-                                elif self.cnt.type[ke] in [3]:
+                                elif self.cnt.type[ke] in [2,3]: # pile interf in 3D, needs to be modified for 2D anchors
                                     step.cnt.stress[0][ke][kgp] = vals[ind]
-                                    ind += 1
+                                    step.cnt.stress[0][ke][kgp] = vals[ind+1]
+                                    step.cnt.stress[0][ke][kgp] = vals[ind+2]
+                                    ind += 3
                                 else:
                                     step.cnt.stress[0][ke][kgp] = vals[ind]
                                     step.cnt.stress[1][ke][kgp] = vals[ind+1]
@@ -1965,10 +1967,15 @@ class zsoil_results:
                                     step.cnt.tstress[1][ke][kgp] = ff[1,0]
                                     step.cnt.tstress[2][ke][kgp] = vals[ind+2]
                                     ind += 3
-                                elif self.cnt.type[ke]==0:
+                                elif self.cnt.type[ke] in [0]:
                                     step.cnt.tstress[0][ke][kgp] = vals[ind]
                                     step.cnt.tstress[1][ke][kgp] = vals[ind+1]
                                     ind += 2
+                                elif self.cnt.type[ke] in [2,3]:
+                                    step.cnt.tstress[0][ke][kgp] = vals[ind]
+                                    step.cnt.tstress[1][ke][kgp] = vals[ind+1]
+                                    step.cnt.tstress[2][ke][kgp] = vals[ind+2]
+                                    ind += 3
                                 else:
                                     step.cnt.tstress[0][ke][kgp] = vals[ind]
                                     step.cnt.tstress[1][ke][kgp] = vals[ind+1]
@@ -1984,10 +1991,15 @@ class zsoil_results:
                                     step.cnt.strain[1][ke][kgp] = ff[1,0]
                                     step.cnt.strain[2][ke][kgp] = vals[ind+2]
                                     ind += 3
-                                elif self.cnt.type[ke]==0:
+                                elif self.cnt.type[ke] in [0]:
                                     step.cnt.strain[0][ke][kgp] = vals[ind]
                                     step.cnt.strain[1][ke][kgp] = vals[ind+1]
                                     ind += 2
+                                elif self.cnt.type[ke] in [2,3]:
+                                    step.cnt.strain[0][ke][kgp] = vals[ind]
+                                    step.cnt.strain[1][ke][kgp] = vals[ind+1]
+                                    step.cnt.strain[2][ke][kgp] = vals[ind+2]
+                                    ind += 3
                                 else:
                                     step.cnt.strain[0][ke][kgp] = vals[ind]
                                     step.cnt.strain[1][ke][kgp] = vals[ind+1]
