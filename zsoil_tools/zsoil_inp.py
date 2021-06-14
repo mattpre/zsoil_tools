@@ -678,6 +678,7 @@ class zsoil_inp:
                     line = file.readline()
                     
             elif '.ics' in line and 'ics' in sections:
+                # contacts on structures
                 if debug:
                     print('reading ics')
                 self.cnt.doublesided = []
@@ -752,39 +753,54 @@ class zsoil_inp:
                         # tested for cnt on beams only, with negative side active
                         v = line.split()
                         self.cnt.number.append(int(v[3]))
-                            
-                        line = file.readline()
-                        line = file.readline()
-                        v = line.split()
-                        volele = [int(v[0])]
-                        volface = [int(v[1])]
+                        beamele = int(v[3])
+                        nsides = int(v[6])
+                        posside = 0
+                        negside = 0
+                        if v[6]=='1':
+                            if v[7]=='2':
+                                negside = 1
+                            else:
+                                posside = 1
+                        elif v[6]=='2':
+                            negside = 1
+                            posside = 1
                         
-                        line = file.readline()
-                        v = line.split()
-                        inel = [[]]
-                        for kk in range(4):
-                            inel[0].append(int(v[kk]))
-                        center = [0,0]
-                        for kn in inel[0][:2]:
-                            center[0] += self.coords[0][kn-1]/2
-                            center[1] += self.coords[1][kn-1]/2
-                        line = file.readline()
-                        line = file.readline()
-                        v = line.split()
-                        mat = [int(v[1])]
-                        EF = [int(v[2])]
-                        LF = [int(v[3])]
-                        self.cnt.inel.append(inel)
-                        self.cnt.mat.append(mat)
-                        self.cnt.EF.append(EF)
-                        self.cnt.LF.append(LF)
-                        self.cnt.center[0].append(center[0])
-                        self.cnt.center[1].append(center[1])
-                        self.num_contacts.append(int(v[1]))
+                        line = file.readline() # cnt name
+                        for ks in range(nsides):
+                            # not yet implemented
+                            line = file.readline() # ?
+                            line = file.readline() # ?
+                            line = file.readline() # ?
+                            line = file.readline() # ?
+                            line = file.readline() # ?
+##                            v = line.split()
+##                            inel = [[]]
+##                            for kk in range(4):
+##                                inel[0].append(int(v[kk]))
+##                            center = [0,0]
+##                            for kn in inel[0][:2]:
+##                                center[0] += self.coords[0][kn-1]/2
+##                                center[1] += self.coords[1][kn-1]/2
+##                            line = file.readline()
+##                            line = file.readline()
+##                            v = line.split()
+##                            print(line)
+##                            mat = [int(v[1])]
+##                            EF = [int(v[2])]
+##                            LF = [int(v[3])]
+##                            self.cnt.inel.append(inel)
+##                            self.cnt.mat.append(mat)
+##                            self.cnt.EF.append(EF)
+##                            self.cnt.LF.append(LF)
+##                            self.cnt.center[0].append(center[0])
+##                            self.cnt.center[1].append(center[1])
+##                            self.num_contacts.append(int(v[1]))
                     else:
                         print('Error: check reading of contacts')
                         
             elif '.icg' in line and 'icg' in sections:
+                # contacts on volumics
                 if debug:
                     print('reading icg')
                 self.cntcont.type = [] # 0 for continuity w/ p 1 for contact, 2 for continuity w/out p

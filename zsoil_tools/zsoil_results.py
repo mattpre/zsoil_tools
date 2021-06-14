@@ -218,6 +218,12 @@ class time_step:
         self.Enorm = 0.0
         self.Fnorm = 0.0
 
+        self.nModes = 0
+        self.modes = []
+        self.f0 = []
+        self.effm = []
+        self.pf = []
+
         # nodal results:
         self.nodal = nodal()
 
@@ -246,6 +252,11 @@ class time_step:
 
         # membrane results:
         self.mem = mem()
+
+class mode:
+    def __init__(self,dim):
+        self.nodal = nodal()
+        self.nodal.disp = [[] for kd in range(dim)]
 
 class zsoil_results:
     def __init__(self,pathname,problem_name,verbose_level=0):
@@ -283,6 +294,7 @@ class zsoil_results:
         self.out_steps = []
         self.out_diff_steps = []
         self.ref_vect2D = [0,1,0]
+        self.nModes = 0
 
         self.LTF = []
         self.nLTF = 0
@@ -347,6 +359,7 @@ class zsoil_results:
             v = line.split()
             if len(v)>6:
                 s = self.give_time_step(lcount)
+                s.type = int(v[0])
                 s.niter = int(v[1])
                 s.conv_status = int(v[2])
                 s.sf = float(v[3])
@@ -847,7 +860,7 @@ class zsoil_results:
         
         ncomp = 0
         for rt in self.nodal_res[0].res_labels:
-            if res_type=='displacements' or res_type=='reactions' or res_type=='init':
+            if res_type in ['displacements','reactions','init']:
                 if rt=='DISP_TRA':
                     ncomp += self.nodal_res[0].ncomp[self.nodal_res[0].res_labels.index(rt)]
                 elif rt=='DISP_ROT':
@@ -865,7 +878,7 @@ class zsoil_results:
                 if rt=='ACCEL-TRA':
                     ncomp += self.nodal_res[0].ncomp[self.nodal_res[0].res_labels.index(rt)]
 
-        if res_type=='init':
+        if res_type in ['init']:
             read_steps = [0]
         else:
             read_steps = self.out_steps
@@ -885,7 +898,7 @@ class zsoil_results:
         
                 nodal_res = []
                 for rt in self.nodal_res[0].res_labels:
-                    if res_type=='displacements' or res_type=='reactions' or res_type=='init':
+                    if res_type in ['displacements','reactions','init']:
                         if rt=='DISP_TRA':
                             nodal_res.append(0)
                             for kcomp in range(self.nodal_res[0].ncomp[self.nodal_res[0].res_labels.index(rt)]):
@@ -1949,8 +1962,10 @@ class zsoil_results:
                                     ind += 2
                                 elif self.cnt.type[ke] in [2,3]: # pile interf in 3D, needs to be modified for 2D anchors
                                     step.cnt.stress[0][ke][kgp] = vals[ind]
-                                    step.cnt.stress[0][ke][kgp] = vals[ind+1]
-                                    step.cnt.stress[0][ke][kgp] = vals[ind+2]
+                                    step.cnt.stress[1][ke][kgp] = vals[ind+1]
+                                    step.cnt.stress[2][ke][kgp] = vals[ind+2]
+                                    if self.cnt.type[ke]==3:
+                                        print(vals)
                                     ind += 3
                                 else:
                                     step.cnt.stress[0][ke][kgp] = vals[ind]
@@ -2209,8 +2224,8 @@ class zsoil_results:
                                 line = file.readline()
                     else:
                         line = file.readline()
-        file.close()                
-        
+        file.close()        
+
         
     def read_LTF(self):
         file = open(self.pathname + '/' + self.problem_name + '.dat')
@@ -2230,6 +2245,48 @@ class zsoil_results:
                         ltf.append(float(v[1]))
                     self.LTF.append([tx,ltf])
         file.close()
+
+    def read_eig(self):
+        for step in self.steps:
+            ## only 1 eigenvalue analysis possible per calculation
+            if step.type==7:
+                if self.jobtype=='3D':
+                    dim = 3
+                else:
+                    dim = 2
+
+                file = open(self.pathname + '/' + self.problem_name + '.eig')
+
+                line = file.readline()
+                v = line.split(';')
+                step.nModes = len(v)-2
+                line = file.readline()
+                line = file.readline()
+                v = line.split(';')
+                step.f0 = [float(v[kk+1]) for kk in range(step.nModes)]
+                for kd in range(dim):
+                    line = file.readline()
+                    v = line.split(';')
+                    print(len(v),step.nModes,line)
+                    step.effm.append([float(v[kk+1]) for kk in range(step.nModes)])
+                for kd in range(dim):
+                    line = file.readline()
+                    v = line.split(';')
+                    step.pf.append([float(v[kk+1]) for kk in range(step.nModes)])
+                line = file.readline()
+
+                DISP = []
+                for line in file:
+                    v = line.split(';')
+                    DISP.append([float(v[kk+3]) for kk in range(step.nModes*dim)])
+                ##    coords[0].append(float(v[1]))
+                ##    coords[1].append(float(v[2]))
+                file.close()
+                for kf in range(step.nModes):
+                    aMode = mode(dim)
+                    for kd in range(dim):
+                        aMode.nodal.disp[kd] = [DISP[kn][kf*dim+kd] for kn in range(self.nNodes)]
+                    step.modes.append(aMode)
 
 
     def write_vtk(self,res,pname):
