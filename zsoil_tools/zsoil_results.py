@@ -1964,8 +1964,6 @@ class zsoil_results:
                                     step.cnt.stress[0][ke][kgp] = vals[ind]
                                     step.cnt.stress[1][ke][kgp] = vals[ind+1]
                                     step.cnt.stress[2][ke][kgp] = vals[ind+2]
-                                    if self.cnt.type[ke]==3:
-                                        print(vals)
                                     ind += 3
                                 else:
                                     step.cnt.stress[0][ke][kgp] = vals[ind]
