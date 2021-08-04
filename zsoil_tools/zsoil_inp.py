@@ -1275,7 +1275,7 @@ class zsoil_inp:
                     line = file.readline()
                     lfun.number = int(line.split()[0])
                     lfun.nSteps = int(line.split()[1])
-                    lfun.name = line.split(' ',2)[1][:-1]
+                    lfun.name = line.split(' ',2)[2][:-1]
                     line = file.readline()
                     lfun.flags = line[:-1]
                     v = file.readline().split()
