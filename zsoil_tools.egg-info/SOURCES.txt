@@ -1,4 +1,4 @@
-README.rst
+README.md
 setup.py
 zsoil_tools/ZSmaterial.py
 zsoil_tools/__init__.py
