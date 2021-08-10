@@ -935,7 +935,7 @@ class zsoil_inp:
                     if len(self.num_volumics)==0:
                         print('Warning (reading surface loads): No volumic elements have been read.')
                     if len(self.num_shells)==0:
-                        print('Warning (reading surface loads): No volumic elements have been read.')
+                        print('Warning (reading surface loads): No shell elements have been read.')
                     if 'UNI_LOAD' in line:
                         sl.type = 'UNI_LOAD'
                         v = line.split()
