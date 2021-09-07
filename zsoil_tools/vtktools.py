@@ -164,8 +164,8 @@ def create_point_data(mesh,nodal,step_nodal,res_labels,nNodes):
 def write_unstructured_grid(filename,mesh,cdata,nEle,EFs,time,verbose,
                             outline=False,cut=[]):
     writer = vtk.vtkXMLUnstructuredGridWriter()
-##    writer.SetDataModeToBinary()
-    writer.SetDataModeToAscii()
+    writer.SetDataModeToBinary()
+##    writer.SetDataModeToAscii()
     writer.SetFileName(filename+'.vtu')
     extract = vtk.vtkExtractCells()
     extract.SetInputData(mesh)
@@ -589,7 +589,8 @@ def get_section(mesh,plane,origin=0,loc_syst=[],matlist=[],EFlist=[],LFlist=[],
                         pt1 = points.GetPoint(id1)
                         if disp:
                             vals = [M.GetTuple(kl),N.GetTuple(kl),T.GetTuple(kl),
-                                    [D.GetTuple(id0),D.GetTuple(id1)]]
+                                    [project_on_plane(base,(0,0,0),D.GetTuple(id0)),
+                                     project_on_plane(base,(0,0,0),D.GetTuple(id1))]]
                         else:
                             vals = [M.GetTuple(kl),N.GetTuple(kl),T.GetTuple(kl)]
                         segments.append([project_on_plane(base,origin,pt0),
