@@ -70,7 +70,8 @@ def create_cell_data(mesh,eg,res_group,step_res,res_labels,nEle,
         ele = vtk_constructor()
         ids = ele.GetPointIds()
         inel = res_group.inel[ke]
-        for kk,kn in enumerate(inel):
+        # for thick shells only 4 nodes are used
+        for kk,kn in enumerate(inel[:ids.GetNumberOfIds()]):
             ids.SetId(kk,kn-1)
         cells.InsertNextCell(ele)
         EF.InsertNextTuple1(res_group.EF[ke])
@@ -612,6 +613,7 @@ def get_section_vol(mesh,plane,loc_syst,celldata=False,
     
     if celldata:
         output0 = cut.GetOutput()
+##        print(output0.GetNumberOfCells())
         cdata = output0.GetCellData()
         mat = cdata.GetArray('mat')
         EF = cdata.GetArray('EF')
