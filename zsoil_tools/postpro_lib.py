@@ -1058,30 +1058,53 @@ def GetDiscreteColormap(minmax,colormap='ZSoil_maps',ncol=20):
         
     ticks = MultipleLocator(dround).tick_values(minmax[0],minmax[1])
     ticks = np.linspace(minmax[0],minmax[1],ncol+1)
-    zsoil = np.array([[41,28,166],
-                      [75,11,244],
-                      [60,138,255],
-                      [61,167,254],
-                      [63,190,252],
-                      [69,215,245],
-                      [83,232,232],
-                      [95,220,194],
-                      [88,226,143],
-                      [81,238,77],
-                      [143,251,64],
-                      [187,251,117],
-                      [216,254,99],
-                      [255,255,0],
-                      [241,231,35],
-                      [239,216,80],
-                      [238,186,77],
-                      [242,139,64],
-                      [254,71,67],
-                      [233,6,1],
-                      [193,80,4],
-                      [167,1,34]])
-    zsoil = np.array([[v[0]/255,v[1]/255,v[2]/255] for v in zsoil])
-    cmap = colors.ListedColormap(zsoil)    
+    if colormap=='ZSoil_maps':
+        zsoil = np.array([[41,28,166],
+                          [75,11,244],
+                          [60,138,255],
+                          [61,167,254],
+                          [63,190,252],
+                          [69,215,245],
+                          [83,232,232],
+                          [95,220,194],
+                          [88,226,143],
+                          [81,238,77],
+                          [143,251,64],
+                          [187,251,117],
+                          [216,254,99],
+                          [255,255,0],
+                          [241,231,35],
+                          [239,216,80],
+                          [238,186,77],
+                          [242,139,64],
+                          [254,71,67],
+                          [233,6,1],
+                          [193,80,4],
+                          [167,1,34]])
+        colmap = np.array([[v[0]/255,v[1]/255,v[2]/255] for v in zsoil])
+    elif colormap=='mat':
+        c = ['#ffdcd2',
+             '#ffa4a4',
+             '#f98568',
+             '#da180e',
+             '#ffffc6',
+             '#def538',
+             '#b0b000',
+             '#878e2b',
+             '#dbfdc6',
+             '#8bf391',
+             '#5ac960',
+             '#658750',
+             '#e0e4fe',
+             '#bb9af1',
+             '#548bcf',
+             '#fdcbfe',
+             '#e75ae3',
+             '#ad5ab4',
+             '#abe3e7',
+             '#67b1ae']
+        colmap = np.array([colors.hex2color(c[k%20]) for k in range(ncol)])
+    cmap = colors.ListedColormap(colmap)    
     norm = colors.BoundaryNorm(ticks,len(ticks))
 
     return cmap,norm,ticks

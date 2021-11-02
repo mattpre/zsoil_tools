@@ -1,11 +1,11 @@
-#########################################################
-##                                                     ##
-##         Library for plotting zsoil results          ##
-##              developed by M. Preisig                ##
-##                 mpreisig@geomod.ch                  ##
-##                      2015-2020                      ##
-##                                                     ##
-#########################################################
+#############################################################
+##                                                         ##
+##      Library for plotting zsoil results using vtk       ##
+##              developed by M. Preisig                    ##
+##                 mpreisig@geomod.ch                      ##
+##                      2015-2021                          ##
+##                                                         ##
+#############################################################
 
 import numpy as np
 import math
@@ -70,7 +70,8 @@ def create_cell_data(mesh,eg,res_group,step_res,res_labels,nEle,
         ele = vtk_constructor()
         ids = ele.GetPointIds()
         inel = res_group.inel[ke]
-        for kk,kn in enumerate(inel):
+        # for thick shells only 4 nodes are used
+        for kk,kn in enumerate(inel[:ids.GetNumberOfIds()]):
             ids.SetId(kk,kn-1)
         cells.InsertNextCell(ele)
         EF.InsertNextTuple1(res_group.EF[ke])
@@ -612,6 +613,7 @@ def get_section_vol(mesh,plane,loc_syst,celldata=False,
     
     if celldata:
         output0 = cut.GetOutput()
+##        print(output0.GetNumberOfCells())
         cdata = output0.GetCellData()
         mat = cdata.GetArray('mat')
         EF = cdata.GetArray('EF')
@@ -1129,3 +1131,106 @@ def compute_volume(pts):
         a = a1+a2
 
     return a
+
+def slice_polyplane(mesh,profile,updir='y'):
+
+    transL1 = vtk.vtkTransform()
+    if updir=='y':
+        transL1.RotateX(90)
+    elif updir=='x':
+        transL1.RotateY(90)
+    elif updir=='z':
+        pass
+    
+    trans = vtk.vtkTransformFilter()
+    trans.SetTransform(transL1)
+    trans.SetInputData(mesh)
+    trans.Update()
+
+    pts = vtk.vtkPoints()
+    for pt in profile.points:
+        pts.InsertNextPoint((pt[0],pt[1],0))
+    
+    # check if labels are between profile points:
+    label_abscissae = [0 for k in profile.labels]
+    x0 = 0
+    for kpt in range(len(profile.points)-1):
+        pt0 = profile.points[kpt]
+        pt1 = profile.points[kpt+1]
+        dL = ((pt0[0]-pt1[0])**2+(pt0[1]-pt1[1])**2)**0.5
+        for kppt in range(len(profile.labels)):
+            pt = profile.labels[kppt][:2]
+            d0 = ((pt0[0]-pt[0])**2+(pt0[1]-pt[1])**2)**0.5
+            d1 = ((pt1[0]-pt[0])**2+(pt1[1]-pt[1])**2)**0.5
+            if d0<dL and d1<=dL:
+                if abs((d0+d1-dL)/dL)>1e-2:
+                    print('check vtktools.slice_polyplane')
+                label_abscissae[kppt] = x0+d0
+        x0 += dL
+
+    pd = vtk.vtkPolyData()
+    pd.SetPoints(pts)
+    
+    pl = vtk.vtkPolyLine()
+    pl.GetPointIds().SetNumberOfIds(len(profile.points))
+    for kpt in range(len(profile.points)):
+        pl.GetPointIds().SetId(kpt,kpt)
+
+    ca = vtk.vtkCellArray()
+    ca.InsertNextCell(pl)
+    pd.SetLines(ca)
+
+    pd.Allocate(1,1)
+    pd.InsertNextCell(pl.GetCellType(),pl.GetPointIds())
+
+    pl = vtk.vtkPolyLine.SafeDownCast(pd.GetCell(0))
+    
+    bounds = pl.GetBounds()
+    box = vtk.vtkBox()
+    box.SetBounds(bounds[0],bounds[1],bounds[2],bounds[3],-1000,1000)
+
+    pplane = vtk.vtkPolyPlane()
+    pplane.SetPolyLine(pl)
+
+    cut = vtk.vtkCutter()
+    cut.SetInputConnection(trans.GetOutputPort())
+    cut.SetCutFunction(pplane)
+    cut.Update()
+
+    clip = vtk.vtkClipPolyData()
+    clip.SetInputConnection(cut.GetOutputPort())
+    clip.SetClipFunction(box)
+    clip.InsideOutOn()
+    clip.Update()
+    output = clip.GetOutput()
+    
+    abscissae = []
+    for kp in range(output.GetNumberOfPoints()):
+        pt = output.GetPoint(kp)
+        abscissae.append(project_on_polyline(pt[0],pt[1],pts))
+
+    return abscissae,output,label_abscissae
+
+def project_on_polyline(xx,yy,pts):
+    pt = np.array([xx,yy])
+    # if np.linalg.norm(pt-np.array([79.25,-52.8895]))<0.1:
+    #     print(pt)
+    x0 = 0
+    for kpp in range(pts.GetNumberOfPoints()-1):
+        pt0 = np.array(pts.GetPoint(kpp)[:2])
+        pt1 = np.array(pts.GetPoint(kpp+1)[:2])
+        dL = np.linalg.norm(pt1-pt0)
+        vL = (pt1-pt0)/dL
+        v0 = pt-pt0
+        d0 = np.linalg.norm(v0)
+        dp = np.dot(v0,vL)
+        if dp<0 or d0<=dL:
+            x0 += dp
+            break
+        elif d0>dL:
+            if kpp==pts.GetNumberOfPoints()-2:
+                x0 += dp
+            else:
+                x0 += dL
+    return x0
+            
