@@ -589,7 +589,8 @@ def get_section(mesh,plane,origin=0,loc_syst=[],matlist=[],EFlist=[],LFlist=[],
                         pt1 = points.GetPoint(id1)
                         if disp:
                             vals = [M.GetTuple(kl),N.GetTuple(kl),T.GetTuple(kl),
-                                    [D.GetTuple(id0),D.GetTuple(id1)]]
+                                    [project_on_plane(base,origin,D.GetTuple(id0)),
+                                     project_on_plane(base,origin,D.GetTuple(id1))]]
                         else:
                             vals = [M.GetTuple(kl),N.GetTuple(kl),T.GetTuple(kl)]
                         segments.append([project_on_plane(base,origin,pt0),
