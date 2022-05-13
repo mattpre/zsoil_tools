@@ -163,4 +163,7 @@ read_s07 tentative modif for piles
 
 v1.3.12
 read_results:
-read_s07 corrections for piles
+read_s07
+- corrections for piles
+- loc_syst for Q4 contacts with tributary areas for integration of
+  cnt-stresses
