@@ -59,6 +59,7 @@ class ele_info:
         self.ps = []    # property set after .eda file
         self.loc_syst = [] # rotation matrix for projecting results into ref_vect3D
         self.base = []
+        self.area = [] # tributary areas for gauss points abs(dXdxi X dXdeta)
         self.type = []  # for contact: 0 for 2D, 1 for 3D, 2 for pile interface, 3 for tip interf.
         self.parent = []    # element number of beam or shell etc for contacts
         self.dir_nodes = [] # for beams, the numbers of nodes indicating local y-direction (2 per beam)
@@ -1247,7 +1248,7 @@ class zsoil_results:
 
                             rot = self.shell.loc_syst[n]
                             ff = rot.transpose()*f0
-                            ff *= rot                            
+                            ff *= rot
                             step.shell.smforce[0].append(ff[0,0])
                             step.shell.smforce[1].append(ff[1,1])
                             step.shell.smforce[2].append(ff[0,1])
@@ -1836,6 +1837,16 @@ class zsoil_results:
             printN = 1
 
         # compute local coordinate systems:
+        Xi = [-1,1,1,-1]
+        Eta = [-1,-1,1,1]
+        dNdxi = []
+        dNdeta = []
+        for kgp in range(4):
+            xi = Xi[kgp]
+            eta = Eta[kgp]
+            dNdxi.append([-0.25*(1-eta),0.25*(1-eta),0.25*(1+eta),-0.25*(1+eta)])
+            dNdeta.append([-0.25*(1-xi),-0.25*(1+xi),0.25*(1+xi),0.25*(1-xi)])
+
         for kele in range(self.nContacts):
             if self.cnt.type[kele]==1:
                 inel = self.cnt.inel[kele]
@@ -1844,50 +1855,73 @@ class zsoil_results:
                     crd.append([self.coords[0][inel[kk]-1],
                                 self.coords[1][inel[kk]-1],
                                 self.coords[2][inel[kk]-1]])
-                
-                exi = numpy.array([0.5*(crd[1][0]+crd[2][0])-0.5*(crd[0][0]+crd[3][0]),
-                                   0.5*(crd[1][1]+crd[2][1])-0.5*(crd[0][1]+crd[3][1]),
-                                   0.5*(crd[1][2]+crd[2][2])-0.5*(crd[0][2]+crd[3][2])])
-                exi /= la.norm(exi)
-                eta = numpy.array([0.5*(crd[2][0]+crd[3][0])-0.5*(crd[0][0]+crd[1][0]),
-                                   0.5*(crd[2][1]+crd[3][1])-0.5*(crd[0][1]+crd[1][1]),
-                                   0.5*(crd[2][2]+crd[3][2])-0.5*(crd[0][2]+crd[1][2])])
-                eta /= la.norm(eta)
-                e3 = numpy.cross(exi,eta)
-                e3 /= la.norm(e3)
-                
-                a = exi+eta
-                a /= la.norm(a)
-                b = numpy.cross(e3,a)
-                b /= la.norm(b)
-                
-                f = math.sqrt(2.)/2
-                e1 = f*(a-b)
-                e2 = f*(a+b)
 
-                v = numpy.array([0,1,0])
-                vp = v - numpy.inner(e3,v)*e3
-                vpn = la.norm(vp)
-                if abs(vpn)<1e-6:
-                    v = numpy.array([0,0,1])
+                loc_syst = []
+                base = []
+                area = []
+                for kgp in range(4):
+                    dxdxi = sum([dNdxi[kgp][k]*crd[k][0] for k in range(4)])
+                    dydxi = sum([dNdxi[kgp][k]*crd[k][1] for k in range(4)])
+                    dzdxi = sum([dNdxi[kgp][k]*crd[k][2] for k in range(4)])
+                    dxdeta = sum([dNdeta[kgp][k]*crd[k][0] for k in range(4)])
+                    dydeta = sum([dNdeta[kgp][k]*crd[k][1] for k in range(4)])
+                    dzdeta = sum([dNdeta[kgp][k]*crd[k][2] for k in range(4)])
+                    dXdxi = numpy.array([dxdxi,dydxi,dzdxi])
+                    dXdeta = numpy.array([dxdeta,dydeta,dzdeta])
+                    exi = dXdxi/numpy.linalg.norm(dXdxi)
+                    eta = dXdeta/numpy.linalg.norm(dXdeta)
+                    area.append(numpy.linalg.norm(numpy.cross(dXdxi,dXdeta)))
+                    
+        
+##                exi = numpy.array([0.5*(crd[1][0]+crd[2][0])-0.5*(crd[0][0]+crd[3][0]),
+##                                   0.5*(crd[1][1]+crd[2][1])-0.5*(crd[0][1]+crd[3][1]),
+##                                   0.5*(crd[1][2]+crd[2][2])-0.5*(crd[0][2]+crd[3][2])])
+##                
+##                exi /= la.norm(exi)
+##                eta = numpy.array([0.5*(crd[2][0]+crd[3][0])-0.5*(crd[0][0]+crd[1][0]),
+##                                   0.5*(crd[2][1]+crd[3][1])-0.5*(crd[0][1]+crd[1][1]),
+##                                   0.5*(crd[2][2]+crd[3][2])-0.5*(crd[0][2]+crd[1][2])])
+##                eta /= la.norm(eta)
+                    e3 = numpy.cross(exi,eta)
+                    e3 /= la.norm(e3)
+                    
+                    a = exi+eta
+                    a /= la.norm(a)
+                    b = numpy.cross(e3,a)
+                    b /= la.norm(b)
+                    
+                    f = math.sqrt(2.)/2
+                    e1 = f*(a-b)
+                    e2 = f*(a+b)
+
+                    v = numpy.array(self.ref_vect2D)
                     vp = v - numpy.inner(e3,v)*e3
                     vpn = la.norm(vp)
-                cosa = numpy.inner(e1,vp)/vpn
-                sina = numpy.inner(e2,vp)/vpn
-                
-                self.cnt.loc_syst.append(numpy.matrix([[cosa,-sina],[sina,cosa]]))
-            elif self.cnt.type[kele]==1:
-                inel = self.cnt.inel[kele]
-                crd = []
-                for kk in range(2):
-                    crd.append([self.coords[0][inel[kk]-1],
-                                self.coords[1][inel[kk]-1]])
-                dx = crd[1][0]-crd[0][0]
-                dy = crd[1][1]-crd[0][1]
-                norm = math.sqrt(dx**2+dy**2)
-                self.cnt.loc_syst.append(numpy.matrix([[dx/norm,dy/norm],[-dy/norm,dx/norm]]))
+                    if abs(vpn)<1e-6:
+                        v = numpy.array([0,0,1])
+                        vp = v - numpy.inner(e3,v)*e3
+                        vpn = la.norm(vp)
+                    cosa = numpy.inner(e1,vp)/vpn
+                    sina = numpy.inner(e2,vp)/vpn
+
+                    loc_syst.append(numpy.matrix([[cosa,-sina],[sina,cosa]]))
+                    base.append([e1,e2,e3])
+                self.cnt.loc_syst.append(loc_syst)
+                self.cnt.base.append(base)
+                self.cnt.area.append(area)
+##            elif self.cnt.type[kele]==1:
+##                inel = self.cnt.inel[kele]
+##                crd = []
+##                for kk in range(2):
+##                    crd.append([self.coords[0][inel[kk]-1],
+##                                self.coords[1][inel[kk]-1]])
+##                dx = crd[1][0]-crd[0][0]
+##                dy = crd[1][1]-crd[0][1]
+##                norm = math.sqrt(dx**2+dy**2)
+##                self.cnt.loc_syst.append(numpy.matrix([[dx/norm,dy/norm],[-dy/norm,dx/norm]]))
             else:
                 self.cnt.loc_syst.append(0)
+                self.cnt.base.append(0)
             
         # read Contact:
         if self.verbose_level<2:
@@ -1950,11 +1984,14 @@ class zsoil_results:
                                 if self.cnt.type[ke]==1:
                                     f0 = numpy.matrix([[vals[ind]],[vals[ind+1]]])
 
-                                    rot = self.cnt.loc_syst[ke]
-                                    ff = rot.transpose()*f0                                
+                                    rot = self.cnt.loc_syst[ke][kgp]
+                                    ff = rot.transpose()*f0
                                     step.cnt.stress[0][ke][kgp] = ff[0,0]
                                     step.cnt.stress[1][ke][kgp] = ff[1,0]
+##                                    step.cnt.stress[0][ke][kgp] = vals[ind+0]#ff[0,0]
+##                                    step.cnt.stress[1][ke][kgp] = vals[ind+1]#ff[1,0]
                                     step.cnt.stress[2][ke][kgp] = vals[ind+2]
+
                                     ind += 3
                                 elif self.cnt.type[ke] in [0]:
                                     step.cnt.stress[0][ke][kgp] = vals[ind]
@@ -1974,7 +2011,7 @@ class zsoil_results:
                                 if self.cnt.type[ke]==1:
                                     f0 = numpy.matrix([[vals[ind]],[vals[ind+1]]])
 
-                                    rot = self.cnt.loc_syst[ke]
+                                    rot = self.cnt.loc_syst[ke][kgp]
                                     ff = rot.transpose()*f0
                                     step.cnt.tstress[0][ke][kgp] = ff[0,0]
                                     step.cnt.tstress[1][ke][kgp] = ff[1,0]
@@ -1998,7 +2035,7 @@ class zsoil_results:
                                 if self.cnt.type[ke]==1:
                                     f0 = numpy.matrix([[vals[ind]],[vals[ind+1]]])
 
-                                    rot = self.cnt.loc_syst[ke]
+                                    rot = self.cnt.loc_syst[ke][kgp]
                                     ff = rot.transpose()*f0
                                     step.cnt.strain[0][ke][kgp] = ff[0,0]
                                     step.cnt.strain[1][ke][kgp] = ff[1,0]
