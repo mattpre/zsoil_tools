@@ -215,6 +215,7 @@ class time_step:
         self.push_over = 0
         self.PSH = 0.0
         self.PSH_disp = 0.0
+        self.solver = 0
         # from log file:
         self.Enorm = 0.0
         self.Fnorm = 0.0
@@ -370,6 +371,7 @@ class zsoil_results:
                 s.push_over = int(v[7])
                 s.PSH = float(v[9])
                 s.PSH_disp = float(v[10])
+                s.solver = int(v[14])
                 lcount += 1
         self.nSteps = lcount
 
@@ -1997,7 +1999,7 @@ class zsoil_results:
                                     step.cnt.stress[0][ke][kgp] = vals[ind]
                                     step.cnt.stress[1][ke][kgp] = vals[ind+1]
                                     ind += 2
-                                elif self.cnt.type[ke] in [2,3]: # pile interf in 3D, needs to be modified for 2D anchors
+                                elif self.cnt.type[ke] in [2,3] and self.jobtype=='3D': # pile interf in 3D, needs to be modified for 2D anchors
                                     step.cnt.stress[0][ke][kgp] = vals[ind]
                                     step.cnt.stress[1][ke][kgp] = vals[ind+1]
                                     step.cnt.stress[2][ke][kgp] = vals[ind+2]
@@ -2005,8 +2007,7 @@ class zsoil_results:
                                 else:
                                     step.cnt.stress[0][ke][kgp] = vals[ind]
                                     step.cnt.stress[1][ke][kgp] = vals[ind+1]
-                                    step.cnt.stress[2][ke][kgp] = vals[ind+2]
-                                    ind += 3
+                                    ind += 2
                             elif rt=='T_STRESSES':
                                 if self.cnt.type[ke]==1:
                                     f0 = numpy.matrix([[vals[ind]],[vals[ind+1]]])
@@ -2021,7 +2022,7 @@ class zsoil_results:
                                     step.cnt.tstress[0][ke][kgp] = vals[ind]
                                     step.cnt.tstress[1][ke][kgp] = vals[ind+1]
                                     ind += 2
-                                elif self.cnt.type[ke] in [2,3]:
+                                elif self.cnt.type[ke] in [2,3] and self.jobtype=='3D':
                                     step.cnt.tstress[0][ke][kgp] = vals[ind]
                                     step.cnt.tstress[1][ke][kgp] = vals[ind+1]
                                     step.cnt.tstress[2][ke][kgp] = vals[ind+2]
@@ -2029,8 +2030,7 @@ class zsoil_results:
                                 else:
                                     step.cnt.tstress[0][ke][kgp] = vals[ind]
                                     step.cnt.tstress[1][ke][kgp] = vals[ind+1]
-                                    step.cnt.tstress[2][ke][kgp] = vals[ind+2]
-                                    ind += 3
+                                    ind += 2
                             elif rt=='STRAINS':
                                 if self.cnt.type[ke]==1:
                                     f0 = numpy.matrix([[vals[ind]],[vals[ind+1]]])
@@ -2045,7 +2045,7 @@ class zsoil_results:
                                     step.cnt.strain[0][ke][kgp] = vals[ind]
                                     step.cnt.strain[1][ke][kgp] = vals[ind+1]
                                     ind += 2
-                                elif self.cnt.type[ke] in [2,3]:
+                                elif self.cnt.type[ke] in [2,3] and self.jobtype=='3D':
                                     step.cnt.strain[0][ke][kgp] = vals[ind]
                                     step.cnt.strain[1][ke][kgp] = vals[ind+1]
                                     step.cnt.strain[2][ke][kgp] = vals[ind+2]
@@ -2053,8 +2053,7 @@ class zsoil_results:
                                 else:
                                     step.cnt.strain[0][ke][kgp] = vals[ind]
                                     step.cnt.strain[1][ke][kgp] = vals[ind+1]
-                                    step.cnt.strain[2][ke][kgp] = vals[ind+2]
-                                    ind += 3
+                                    ind += 2
                             elif rt=='PLA_CODE':
                                 step.cnt.pla_code[ke][kgp] = vals[ind]
                                 ind += 1

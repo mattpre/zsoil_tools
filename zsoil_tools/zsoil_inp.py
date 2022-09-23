@@ -797,6 +797,7 @@ class zsoil_inp:
 ##                            self.cnt.center[1].append(center[1])
 ##                            self.num_contacts.append(int(v[1]))
                     else:
+##                        print(line)
                         print('Error: check reading of contacts')
                         
             elif '.icg' in line and 'icg' in sections:
@@ -833,8 +834,8 @@ class zsoil_inp:
                         self.cntcont.center[0].append(center[0])
                         self.cntcont.center[1].append(center[1])
 ##                        self.num_contacts.append(int(v[1]))
-                    else:
-                        print('Error: check reading of contacts')
+##                    else:
+##                        print('Error: check reading of contacts')
 
             elif '.inb' in line and 'inb' in sections:
                 if debug:

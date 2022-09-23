@@ -167,3 +167,7 @@ read_s07
 - corrections for piles
 - loc_syst for Q4 contacts with tributary areas for integration of
   cnt-stresses
+
+v1.3.14
+read_results:
+read_his solver type
