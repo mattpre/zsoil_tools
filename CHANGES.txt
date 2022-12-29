@@ -171,3 +171,9 @@ read_s07
 v1.3.14
 read_results:
 read_his solver type
+
+v1.3.16
+read_results:
+read LIST in dat, after specs in pdf provided
+postpro_lib:
+legend formatting

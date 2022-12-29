@@ -640,24 +640,43 @@ class zsoil_results:
                 labels = []
                 for klist in range(nList):
                     line = lines[kl]
+##                    print(line)
                     kl += 1
-                    nVal = int(line.split()[2])
+                    typ_data = line.split()[1][0]
+                    typ_list = line.split()[1][1]
+                    size1 = int(line.split()[2])
+                    size2 = int(line.split()[3])
                     label = line[37:-1]
                     labels.append(label)
                     # rtype defines how to read the values
                     vals = []
-                    if int(line.split()[3])==1:
-                        for kv in range(int(numpy.ceil(nVal/10.))):
-                            line = lines[kl]
-                            kl += 1
-                            for v in line.split():
-                                vals.append(int(v))
-                    elif int(line.split()[3])==2:
-                        for kv in range(nVal):
-                            line = lines[kl]
-                            kl += 1
-                            v = line.split()
-                            vals.append((int(v[0]),int(v[1]),int(v[2])))
+                    if typ_list.upper()=='L':
+                        if typ_data.upper()=='I':
+                            for kv in range(int(numpy.ceil(size1/10.))):
+                                line = lines[kl]
+                                kl += 1
+                                for v in line.split():
+                                    vals.append(int(v))
+                    elif typ_list.upper()=='A':
+                        if typ_data.upper()=='R':
+                            for kkl in range(size1):
+                                line = lines[kl]
+                                kl += 1
+                                v = line.split()[1:]
+                                vals.append(numpy.array([float(vv) for vv in v]))
+                    elif typ_list.upper()=='Q':
+                        if typ_data.upper()=='I':
+                            for kv in range(int(numpy.ceil(size1/10.))):
+                                line = lines[kl]
+                                kl += 1
+                                for v in line.split():
+                                    vals.append(int(v))
+##                    elif int(line.split()[3])==2:
+##                        for kv in range(nVal):
+##                            line = lines[kl]
+##                            kl += 1
+##                            v = line.split()
+##                            vals.append((int(v[0]),int(v[1]),int(v[2])))
                     self.lists.append((vals,label))
                     if 'P' in label and 'N' in label and not '_' in label:
                         kp = int(label.split()[0][1:])-1
