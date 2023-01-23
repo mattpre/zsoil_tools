@@ -169,6 +169,7 @@ class anchor:
         self.cnt1D = []
         self.cnt0D = -1
         self.nTrusses = 0
+        self.free_truss = -1
         
 class mem:
     def __init__(self):
@@ -624,6 +625,20 @@ class zsoil_results:
                         v = line.split()
                         anAnchor.trusses.append(int(v[0]))
                         anAnchor.cnt1D.append(int(v[1]))
+                    # find free length truss element:
+                    nodes = set()
+                    for ke in anAnchor.trusses:
+                        inel = self.truss.inel[self.num_trusses.index(ke)]
+                        for kn in inel:
+                            nodes.add(kn)
+                    for ke in range(self.nTrusses):
+                        if not self.num_trusses[ke] in anAnchor.trusses:
+                            inel = self.truss.inel[ke]
+                            for kn in inel:
+                                if kn in nodes:
+                                    anAnchor.free_truss = self.num_trusses[ke]
+                                    break
+                    print('here')
                     self.anchors.append(anAnchor)
                     
             elif 'UNITS' in line:

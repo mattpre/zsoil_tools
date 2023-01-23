@@ -1,0 +1,15 @@
+LICENCE.txt
+README.rst
+setup.py
+zsoil_tools/ZSmaterial.py
+zsoil_tools/__init__.py
+zsoil_tools/logfile.py
+zsoil_tools/postpro_lib.py
+zsoil_tools/vtktools.py
+zsoil_tools/zsoil_inp.py
+zsoil_tools/zsoil_results.py
+zsoil_tools.egg-info/PKG-INFO
+zsoil_tools.egg-info/SOURCES.txt
+zsoil_tools.egg-info/dependency_links.txt
+zsoil_tools.egg-info/requires.txt
+zsoil_tools.egg-info/top_level.txt
