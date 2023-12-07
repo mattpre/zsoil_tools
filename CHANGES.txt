@@ -180,3 +180,12 @@ legend formatting
 
 v1.3.17
 read_results: find anchor element belonging to fixed anchor zone trusses
+
+v1.3.18
+read_results:
+- lists IA, bug fixing
+- princ_stresses
+- skip steps with plot status 0
+vtktools:
+- get_section: no origin if vector is displacement (this is only meant for nodal
+  coordinates)

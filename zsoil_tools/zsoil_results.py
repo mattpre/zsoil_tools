@@ -97,8 +97,11 @@ class vol:
         self.Et = []
 ##        self.DAMAGE = []
         # principal stresses are not automatically computed:
-        self.princ = []
-        self.invar = [] #I1, J2, p, q
+        self.princs = []    # stresses
+        self.prince = []    # strains
+        self.eigv = []
+        self.invars = [] #I1, J2
+        self.invare = []    # strains
         
 class shell:
     def __init__(self):
@@ -360,7 +363,7 @@ class zsoil_results:
             line = file.readline()
             if not line: break
             v = line.split()
-            if len(v)>6:
+            if len(v)>6 and int(v[4])==1:
                 s = self.give_time_step(lcount)
                 s.type = int(v[0])
                 s.niter = int(v[1])
@@ -679,6 +682,12 @@ class zsoil_results:
                                 kl += 1
                                 v = line.split()[1:]
                                 vals.append(numpy.array([float(vv) for vv in v]))
+                        elif typ_data.upper()=='I':
+                            for kkl in range(size1):
+                                line = lines[kl]
+                                kl += 1
+                                v = line.split()[1:]
+                                vals.append([int(vv) for vv in v])
                     elif typ_list.upper()=='Q':
                         if typ_data.upper()=='I':
                             for kv in range(int(numpy.ceil(size1/10.))):
@@ -2474,11 +2483,11 @@ class zsoil_results:
 
         fo.close()
 
-    def compute_princ_stresses(self,ele_type,steps=0,elist=0):
+    def compute_princ(self,ele_type='vol',res_type='stress',steps=0,elist=0):
         if steps==0:
-            steps = range(len(self.steps)-1)
+            steps = range(len(self.steps))
         if elist==0:
-            elist = range(len(self.nVolumics))
+            elist = range(self.nVolumics)
         if 'vol' in ele_type:
             eg = self.ele_groups[self.ele_group_labels.index('VOLUMICS')]
             eg.res_labels.append('PRINC')
@@ -2489,14 +2498,21 @@ class zsoil_results:
                     if steps.index(kt)%int(len(steps)/10)==0:
                         print('computation of principal stresses - %i %%'%(1.0*steps.index(kt)/len(steps)*100))
                 step = self.steps[kt]
-                sxx = step.vol.stress[0]
-                syy = step.vol.stress[1]
-                sxy = step.vol.stress[2]
-                szz = step.vol.stress[3]
+                if res_type=='stress':
+                    tensor = step.vol.stress
+                    step.vol.princs = [[],[],[]]
+                    step.vol.eigvs = [[],[],[]]
+                elif res_type=='strain':
+                    tensor = step.vol.strain
+                    step.vol.prince = [[],[],[]]
+                    step.vol.eigve = [[],[],[]]
+                sxx = tensor[0]
+                syy = tensor[1]
+                sxy = tensor[2]
+                szz = tensor[3]
                 if not '2D' in ele_type:
-                    sxz = step.vol.stress[4]
-                    syz = step.vol.stress[5]
-                step.vol.princ = [[],[],[]]
+                    sxz = tensor[4]
+                    syz = tensor[5]
                 for kele in elist:
                     if '2D' in ele_type:
                         mat = numpy.array([[sxx[kele],sxy[kele],0],
@@ -2506,11 +2522,22 @@ class zsoil_results:
                         mat = numpy.array([[sxx[kele],sxy[kele],sxz[kele]],
                                            [sxy[kele],syy[kele],syz[kele]],
                                            [sxz[kele],syz[kele],szz[kele]]])
-                    ev = list(la.eigvals(mat))
-                    ev.sort(reverse=True)
-                    step.vol.princ[0].append(ev[0])
-                    step.vol.princ[1].append(ev[1])
-                    step.vol.princ[2].append(ev[2])
+                    eig = la.eig(mat)
+                    ev = [(eig[0][kk],eig[1][kk]) for kk in range(3)]
+                    if res_type=='stress':
+                        step.vol.princs[0].append(ev[0][0])
+                        step.vol.princs[1].append(ev[1][0])
+                        step.vol.princs[2].append(ev[2][0])
+                        step.vol.eigvs[0].append(ev[0][1])
+                        step.vol.eigvs[1].append(ev[1][1])
+                        step.vol.eigvs[2].append(ev[2][1])
+                    elif res_type=='strain':
+                        step.vol.prince[0].append(ev[0][0])
+                        step.vol.prince[1].append(ev[1][0])
+                        step.vol.prince[2].append(ev[2][0])
+                        step.vol.eigve[0].append(ev[0][1])
+                        step.vol.eigve[1].append(ev[1][1])
+                        step.vol.eigve[2].append(ev[2][1])
 
     def compute_invariants(self,ele_type='vol',res_type='stress',steps=0):
         if steps==0:
@@ -2523,48 +2550,58 @@ class zsoil_results:
                 step = self.steps[kt]
                 if res_type=='stress':
                     tensor = step.vol.stress
+                    step.vol.invars = [[],[]]
                 elif res_type=='strain':
                     tensor = step.vol.strain
+                    step.vol.invare = [[],[]]
                 else:
                     print('Error in zsoil_results.compute_invariants(): res_type %s not valid'%(res_type))
                 sxx = tensor[0]
                 syy = tensor[1]
                 sxy = tensor[2]
                 szz = tensor[3]
+                if self.jobtype=='PLANESTRAIN' or self.jobtype=='AXISYMETRY':
+                    pass
+                else:
+                    sxz = tensor[4]
+                    syz = tensor[5]
                 
-                
-                step.vol.invar = [[],[],[],[]]
                 for kele in range(self.nVolumics):
                     if self.jobtype=='PLANESTRAIN' or self.jobtype=='AXISYMETRY':
-                
                         sigma = numpy.array([[sxx[kele],sxy[kele],0.0],
                                              [sxy[kele],syy[kele],0.0],
                                              [0.0,0.0,szz[kele]]])
-                        sigv = float(1)/3*numpy.trace(sigma)*numpy.array([[1,0,0],
-                                                                          [0,1,0],
-                                                                          [0,0,1]])
-                        sigdev = sigma - sigv
-                        I1 = numpy.trace(sigma)
-                        J2 = float(1)/2*numpy.trace(numpy.dot(sigdev,sigdev))
-                        p = I1/3.0
-                        q = math.sqrt(3*J2)
-                    step.vol.invar[0].append(I1)
-                    step.vol.invar[1].append(J2)
-                    step.vol.invar[2].append(p)
-                    step.vol.invar[3].append(q)
+                    else:                
+                        sigma = numpy.array([[sxx[kele],sxy[kele],sxz[kele]],
+                                             [sxy[kele],syy[kele],syz[kele]],
+                                             [sxz[kele],syz[kele],szz[kele]]])
+                    sigv = float(1)/3*numpy.trace(sigma)*numpy.array([[1,0,0],
+                                                                      [0,1,0],
+                                                                      [0,0,1]])
+                    sigdev = sigma - sigv
+                    I1 = numpy.trace(sigma)
+                    J2 = float(1)/2*numpy.trace(numpy.dot(sigdev,sigdev))
+                    p = I1/3.0
+                    q = math.sqrt(3*J2)
+                    if res_type=='stress':
+                        step.vol.invars[0].append(I1)
+                        step.vol.invars[1].append(J2)
+                    elif res_type=='strain':
+                        step.vol.invare[0].append(I1)
+                        step.vol.invare[1].append(J2)
 
     def compute_area(self,inel):
-        
-        x = []
-        y = []
-        for kk in range(len(inel)):
-            x.append(self.coords[0][inel[kk]-1])
-            y.append(self.coords[1][inel[kk]-1])
-        if len(inel)==3:
-            a = 0.5*abs((x[0]-x[2])*(y[1]-y[0])-(x[0]-x[1])*(y[2]-y[0]))
+        if self.jobtype=='3D':
+            ndim = 3
+        else:
+            ndim = 2
+        points = [numpy.array([self.coords[kk][kn-1] for kk in range(ndim)]) for kn in inel]
+
+        if len(points)==3:
+            a = numpy.linalg.norm(numpy.cross(points[1]-points[0],points[2]-points[0]))/2
         elif len(inel)==4:
-            a1 = 0.5*abs((x[0]-x[2])*(y[1]-y[0])-(x[0]-x[1])*(y[2]-y[0]))
-            a2 = 0.5*abs((x[0]-x[3])*(y[2]-y[0])-(x[0]-x[2])*(y[3]-y[0]))
+            a1 = numpy.linalg.norm(numpy.cross(points[1]-points[0],points[2]-points[0]))/2
+            a2 = numpy.linalg.norm(numpy.cross(points[2]-points[0],points[3]-points[0]))/2
             a = a1+a2
 
         return a

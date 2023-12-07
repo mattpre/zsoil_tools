@@ -545,6 +545,8 @@ def get_section(mesh,plane,origin=0,loc_syst=[],matlist=[],EFlist=[],LFlist=[],
 
     if origin==0:
         origin = plane.GetOrigin()
+    if type(origin) is tuple:
+        origin = np.array(origin)
     normal = plane.GetNormal()
     if not len(loc_syst):
         if not abs(normal[1]-1)<1e-6:
@@ -589,9 +591,10 @@ def get_section(mesh,plane,origin=0,loc_syst=[],matlist=[],EFlist=[],LFlist=[],
                         pt0 = points.GetPoint(id0)
                         pt1 = points.GetPoint(id1)
                         if disp:
+                            # displacements are relative, so no distance from origin
                             vals = [M.GetTuple(kl),N.GetTuple(kl),T.GetTuple(kl),
-                                    [project_on_plane(base,origin,D.GetTuple(id0)),
-                                     project_on_plane(base,origin,D.GetTuple(id1))]]
+                                    [project_on_plane(base,origin*0,D.GetTuple(id0)),
+                                     project_on_plane(base,origin*0,D.GetTuple(id1))]]
                         else:
                             vals = [M.GetTuple(kl),N.GetTuple(kl),T.GetTuple(kl)]
                         segments.append([project_on_plane(base,origin,pt0),

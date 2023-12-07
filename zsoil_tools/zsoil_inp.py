@@ -61,6 +61,7 @@ class ele_info:
         self.dir = []
         self.type = []
         self.type_dict = {0:'Truss',1:'Anchor'}
+        self.prestress = []
 
 class dummy:
     def __init__(self):
@@ -84,6 +85,14 @@ class Material:
         self.type = str()
         self.cross_section = 0
         self.parameters = dict()
+        self.nonl = []
+        self.elas = []
+        self.flow = []
+        self.creep = []
+        self.heat = []
+        self.humid = []
+        self.inis = []
+        self.stab = []
 
 class ExistFun:
     def __init__(self):
@@ -337,6 +346,14 @@ class Seepage:
         self.EF = 0
         self.LF = 0
 
+class Pile:
+    def __init__(self):
+        self.EF = 0
+        self.qpmat = 0
+        self.qsmat = 0
+        self.inel = []
+        self.points = []
+
 class zsoil_inp:
     """Main data structure
     """
@@ -344,7 +361,7 @@ class zsoil_inp:
         self.pathname = pathname
         self.problem_name = problem_name
         self.analysis_type = -1
-        self.analysis_type_dict = {2:'planestrain'}
+        self.analysis_type_dict = {2:'planestrain',3:'3D'}
 
         astep = time_step()
         astep.time = 0
@@ -424,6 +441,8 @@ class zsoil_inp:
         self.seepages = []
         self.thicknesses = []
         self.PBCs = []
+        self.nPiles = 0
+        self.piles = []
 
         self.DRMext = []
         self.DRMint = []
@@ -433,7 +452,7 @@ class zsoil_inp:
 
     def read_inp(self,sections=['ing','i0g','ibg','ilg','ics','icg','inb',
                                 'pob','gob','inl','ibf','gsl','itg',
-                                'brc','ipg'],
+                                'brc','ipg','pil'],
                  debug=False):
         ## Read inp file
         # 'ing': nodes
@@ -451,6 +470,7 @@ class zsoil_inp:
         # 'itg': trusses
         # 'brc': reinforcement sets
         # 'ipg': seepage elements
+        # 'pil': piles
 
         file = open(self.pathname + '/' + self.problem_name + '.inp')
         
@@ -472,6 +492,7 @@ class zsoil_inp:
         self.nTrusses = int(line.split()[22])
         self.nPBC = int(line.split()[13])
         self.nContactsCont = int(line.split()[25])
+        self.nPiles = int(line.split()[10])
         line = file.readline()
         self.nContactsStruct = int(line.split()[1])
         self.nShells += int(line.split()[14])
@@ -611,6 +632,7 @@ class zsoil_inp:
                             inel.append(int(v[3+kk]))
                         self.truss.inel.append(inel)
                         self.truss.number.append(int(v[0]))
+                        self.num_trusses.append(int(v[0]))
                         line = file.readline()
                         v = line.split()
                         self.truss.mat.append(int(v[0]))
@@ -618,10 +640,12 @@ class zsoil_inp:
                         self.truss.LF.append(int(v[4]))
                         self.truss.rm1.append(int(v[1]))
                         self.truss.rm2.append(int(v[2]))
-                        file.readline()
-                        self.num_trusses.append(int(v[0]))
-                        if self.truss.type[-1]==1:
-                            file.readline()
+                        v = file.readline()
+                        ps = []
+                        for kkk in range(int(v)):
+                            v = file.readline().split()
+                            ps.append(v)
+                        self.truss.prestress.append(ps)
             elif '.ilg' in line and 'ilg' in sections:
                 if debug:
                     print('reading ilg')
@@ -935,7 +959,7 @@ class zsoil_inp:
                     sl = SurfaceLoad()
                     if len(self.num_volumics)==0:
                         print('Warning (reading surface loads): No volumic elements have been read.')
-                    if len(self.num_shells)==0:
+                    if len(self.num_shells)==0 and self.analysis_type==3:
                         print('Warning (reading surface loads): No shell elements have been read.')
                     if 'UNI_LOAD' in line:
                         sl.type = 'UNI_LOAD'
@@ -1152,6 +1176,29 @@ class zsoil_inp:
                         v = file.readline().split()
                         aPBC[2].append((int(v[0]),int(v[1])))
                     self.PBCs.append(aPBC)
+            elif '.pil' in line:
+                for kp in range(self.nPiles):
+                    line = file.readline()
+                    v = line.split()
+                    aPile = Pile()
+                    aPile.EF = int(v[3])
+                    aPile.nSeg = int(v[4])
+                    for k in range(4):
+                        file.readline()
+                    line = file.readline()
+                    v = line.split()
+                    aPile.mat = int(v[0])
+                    aPile.qsmat = int(v[1])
+                    aPile.qpmat = int(v[3])
+                    for k in range(aPile.nSeg+1):
+                        line = file.readline()
+                        v = line.split()
+                        pt = np.array([float(v[0]),float(v[1]),float(v[2])])
+                        aPile.points.append(pt)
+                    aPile.length = np.linalg.norm(aPile.points[0]-aPile.points[-1])
+
+                    self.piles.append(aPile)
+                    
                 
             elif 'NUM_MATERIALS' in line:
                 if len(self.materials)==0:  # standard materials
@@ -1185,8 +1232,10 @@ class zsoil_inp:
                                     line = file.readline()
                                     sect.values = [float(v) for v in line.split()]
                                 mat.cross_section = sect
-                            elif 'GEOM->' in line and mat.buttons[2]==1 and 'Truss' in mat.type:
+##                            elif 'GEOM->' in line and mat.buttons[2]==1 and 'Truss' in mat.type:
+                            elif 'GEOM->' in line and 'Truss' in mat.type:
                                 sect = CrossSection()
+                                print(line)
                                 sect.values = [float(line.split()[1])]
                                 mat.cross_section = sect
                             elif 'GEOM->' in line and mat.type=='Shell Layered' and mat.buttons[6]==1:
@@ -1209,6 +1258,39 @@ class zsoil_inp:
                             elif 'DENS->' in line:
                                 vv = line.split('>')[1].split()
                                 mat.density = [float(v) for v in vv]
+                            elif 'NONL->' in line:
+                                vv = line.split()
+                                if len(vv)>1:
+                                    try:
+                                        mat.nonl = [float(v) for v in vv[1:]]
+                                    except:
+                                        pass
+                                    line = file.readline()
+                                    while not 'HEAT->' in line:
+                                        mat.nonl.extend([float(v) for v in line.split()])
+                                        line = file.readline()
+                            elif 'ELAS->' in line:
+                                vv = line.split()
+                                if len(vv)>1:
+                                    try:
+                                        mat.elas = [float(v) for v in vv[1:]]
+                                    except:
+                                        pass
+                                    line = file.readline()
+                                    while not 'GEOM->' in line:
+                                        mat.elas.extend([float(v) for v in line.split()])
+                                        line = file.readline()
+                            elif 'INIS->' in line:
+                                vv = line.split()
+                                if len(vv)>1:
+                                    try:
+                                        mat.inis = [float(v) for v in vv[1:]]
+                                    except:
+                                        pass
+                                    line = file.readline()
+                                    while not 'STAB->' in line:
+                                        mat.inis.extend([float(v) for v in line.split()])
+                                        line = file.readline()
                             line = file.readline()
                         self.materials[mat.number] = mat
                 else:
@@ -1295,6 +1377,7 @@ class zsoil_inp:
                 lfun.data = [[0,1]]
                 lfun.options = [0,1,0]
                 self.LFs[0] = lfun
+##            elif 'NUM_MATERIALS' in line:
                 
         file.close()
 
