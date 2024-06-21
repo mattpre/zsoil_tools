@@ -80,6 +80,8 @@ class nodal:
         self.a_rot = []
         self.v_disp = []
         self.v_rot = []
+        self.m_disp = []
+        self.m_rot = []
         self.temp = []
         self.i_disp = []
         self.i_rot = []
@@ -373,6 +375,7 @@ class zsoil_results:
                 s.time = float(v[5])
                 s.step_count = int(v[6])
                 s.push_over = int(v[7])
+                s.nModes = int(v[8])
                 s.PSH = float(v[9])
                 s.PSH_disp = float(v[10])
                 s.solver = int(v[14])
@@ -901,12 +904,18 @@ class zsoil_results:
             if self.verbose_level<2:
                 print('reading initial displacements:')
             f = open(self.pathname + '/' + self.problem_name + '.uro', "rb")
+        elif res_type=='modal':
+            # read initial displacements:
+            if self.verbose_level<2:
+                print('reading modal displacements:')
+            f = open(self.pathname + '/' + self.problem_name + '.m00', "rb")
 
         kkt = -1
         
         ncomp = 0
         for rt in self.nodal_res[0].res_labels:
             if res_type in ['displacements','reactions','init']:
+                print(rt)
                 if rt=='DISP_TRA':
                     ncomp += self.nodal_res[0].ncomp[self.nodal_res[0].res_labels.index(rt)]
                 elif rt=='DISP_ROT':
@@ -923,109 +932,146 @@ class zsoil_results:
             elif res_type=='accelerations':
                 if rt=='ACCEL-TRA':
                     ncomp += self.nodal_res[0].ncomp[self.nodal_res[0].res_labels.index(rt)]
+            elif res_type=='modal':
+                if rt=='MODES-TRA':
+                    ncomp += self.nodal_res[0].ncomp[self.nodal_res[0].res_labels.index(rt)]
 
         if res_type in ['init']:
             read_steps = [0]
+        elif res_type in ['modal']:
+            read_steps = []
+            for kt in self.out_steps:
+                if self.steps[kt].nModes>0:
+                    read_steps.append(kt)
         else:
             read_steps = self.out_steps
         for kt in range(len(self.steps)):
-            if kt in read_steps:
-                nbytes = 0
-                kkt += 1
-                if not (verbose==True or self.verbose_level>=2):
-                    if kkt%printN==0:
-                        print('reading step ' + str(kt+1) + ' out of ' + str(self.nSteps))
-                step = self.give_time_step(kt)
-                disp = []
-                rot = []
-                ppres = []
-                pres_head = []
-                temp = []
-        
-                nodal_res = []
-                for rt in self.nodal_res[0].res_labels:
-                    if res_type in ['displacements','reactions','init']:
-                        if rt=='DISP_TRA':
-                            nodal_res.append(0)
-                            for kcomp in range(self.nodal_res[0].ncomp[self.nodal_res[0].res_labels.index(rt)]):
-                                disp.append([])
-                        elif rt=='DISP_ROT':
-                            nodal_res.append(1)
-                            for kcomp in range(self.nodal_res[0].ncomp[self.nodal_res[0].res_labels.index(rt)]):
-                                rot.append([])
-                        elif rt=='PPRESS':
-                            nodal_res.append(2)
-                            for kcomp in range(self.nodal_res[0].ncomp[self.nodal_res[0].res_labels.index(rt)]):
-                                ppres.append([])
-                        elif rt=='PRES_HEAD':
-                            nodal_res.append(3)
-                            for kcomp in range(self.nodal_res[0].ncomp[self.nodal_res[0].res_labels.index(rt)]):
-                                pres_head.append([])
-                        elif rt=='TEMP':
-                            nodal_res.append(4)
-                            for kcomp in range(self.nodal_res[0].ncomp[self.nodal_res[0].res_labels.index(rt)]):
-                                temp.append([])
-                    elif res_type=='velocities':
-                        if rt=='VELOC-TRA':
-                            nodal_res.append(0)
-                            for kcomp in range(self.nodal_res[0].ncomp[self.nodal_res[0].res_labels.index(rt)]):
-                                disp.append([])
-                    elif res_type=='accelerations':
-                        if rt=='ACCEL-TRA':
-                            nodal_res.append(0)
-                            for kcomp in range(self.nodal_res[0].ncomp[self.nodal_res[0].res_labels.index(rt)]):
-                                disp.append([])
+            if res_type=='modal':
+                if kt in read_steps:
+                    step = self.give_time_step(kt)
+                    disp = []
+                    for km in range(self.steps[kt].nModes):
+                        nbytes = 0
+                        kkt += 1
+                        print('reading mode %i at step %i out of %i'%(km+1,kt+1,self.nSteps))
+                        m_disp = []
                         
-                for n in range(self.nNodes):
-                    bytes_read = f.read(4*ncomp)
-                    vals = unpack_from('f'*ncomp,bytes_read)
-                    ind = 0
-                    for kk,k in enumerate(nodal_res):
-                        if k==0:
-                            for kr in range(self.nodal_res[0].ncomp[kk]):
-                                disp[kr].append(vals[ind])
-                                ind += 1
-                        elif k==1:
-                            for kr in range(self.nodal_res[0].ncomp[kk]):
-                                rot[kr].append(vals[ind])
-                                ind += 1
-                        elif k==2:
-                            for kr in range(self.nodal_res[0].ncomp[kk]):
-                                ppres[kr].append(vals[ind])
-                                ind += 1
-                        elif k==3:
-                            for kr in range(self.nodal_res[0].ncomp[kk]):
-                                pres_head[kr].append(vals[ind])
-                                ind += 1
-                        elif k==4:
-                            for kr in range(self.nodal_res[0].ncomp[kk]):
-                                temp[kr].append(vals[ind])
-                                ind += 1
-                if res_type=='displacements':
-                    step.nodal.disp = disp
-                    step.nodal.rot = rot
-                    step.nodal.ppres = ppres
-                    step.nodal.pres_head = pres_head
-                    step.nodal.temp = temp
-                elif res_type=='reactions':
-                    step.nodal.r_disp = disp
-                    step.nodal.r_rot = rot
-                    step.nodal.r_ppres = ppres
-                    step.nodal.r_pres_head = pres_head
-                elif res_type=='accelerations':
-                    step.nodal.a_disp = disp
-##                    step.nodal.a_rot = rot
-                elif res_type=='velocities':
-                    step.nodal.v_disp = disp
-##                    step.nodal.v_rot = rot
-                elif res_type=='init':
-                    step.nodal.i_disp = disp
-                    step.nodal.i_rot = rot
-                    step.nodal.i_ppres = ppres
-                    step.nodal.i_pres_head = pres_head
+                        nodal_res = []
+                        for rt in self.nodal_res[0].res_labels:
+                            if rt=='MODES-TRA':
+                                nodal_res.append(0)
+                                for kcomp in range(self.nodal_res[0].ncomp[self.nodal_res[0].res_labels.index(rt)]):
+                                    m_disp.append([])
+                                
+                        for n in range(self.nNodes):
+                            bytes_read = f.read(4*ncomp)
+                            vals = unpack_from('f'*ncomp,bytes_read)
+                            ind = 0
+                            for kk,k in enumerate(nodal_res):
+                                if k==0:
+                                    for kr in range(self.nodal_res[0].ncomp[kk]):
+                                        m_disp[kr].append(vals[ind])
+                                        ind += 1
+                        disp.append(m_disp)
+                    step.nodal.m_disp = disp
             else:
-                offset = ncomp*self.nNodes*4
-                f.seek(offset,1)
+                if kt in read_steps:
+                    nbytes = 0
+                    kkt += 1
+                    if not (verbose==True or self.verbose_level>=2):
+                        if kkt%printN==0:
+                            print('reading step ' + str(kt+1) + ' out of ' + str(self.nSteps))
+                    step = self.give_time_step(kt)
+                    disp = []
+                    rot = []
+                    ppres = []
+                    pres_head = []
+                    temp = []
+            
+                    nodal_res = []
+                    for rt in self.nodal_res[0].res_labels:
+                        if res_type in ['displacements','reactions','init']:
+                            if rt=='DISP_TRA':
+                                nodal_res.append(0)
+                                for kcomp in range(self.nodal_res[0].ncomp[self.nodal_res[0].res_labels.index(rt)]):
+                                    disp.append([])
+                            elif rt=='DISP_ROT':
+                                nodal_res.append(1)
+                                for kcomp in range(self.nodal_res[0].ncomp[self.nodal_res[0].res_labels.index(rt)]):
+                                    rot.append([])
+                            elif rt=='PPRESS':
+                                nodal_res.append(2)
+                                for kcomp in range(self.nodal_res[0].ncomp[self.nodal_res[0].res_labels.index(rt)]):
+                                    ppres.append([])
+                            elif rt=='PRES_HEAD':
+                                nodal_res.append(3)
+                                for kcomp in range(self.nodal_res[0].ncomp[self.nodal_res[0].res_labels.index(rt)]):
+                                    pres_head.append([])
+                            elif rt=='TEMP':
+                                nodal_res.append(4)
+                                for kcomp in range(self.nodal_res[0].ncomp[self.nodal_res[0].res_labels.index(rt)]):
+                                    temp.append([])
+                        elif res_type=='velocities':
+                            if rt=='VELOC-TRA':
+                                nodal_res.append(0)
+                                for kcomp in range(self.nodal_res[0].ncomp[self.nodal_res[0].res_labels.index(rt)]):
+                                    disp.append([])
+                        elif res_type=='accelerations':
+                            if rt=='ACCEL-TRA':
+                                nodal_res.append(0)
+                                for kcomp in range(self.nodal_res[0].ncomp[self.nodal_res[0].res_labels.index(rt)]):
+                                    disp.append([])
+                            
+                    for n in range(self.nNodes):
+                        bytes_read = f.read(4*ncomp)
+                        vals = unpack_from('f'*ncomp,bytes_read)
+                        ind = 0
+                        for kk,k in enumerate(nodal_res):
+                            if k==0:
+                                for kr in range(self.nodal_res[0].ncomp[kk]):
+                                    disp[kr].append(vals[ind])
+                                    ind += 1
+                            elif k==1:
+                                for kr in range(self.nodal_res[0].ncomp[kk]):
+                                    rot[kr].append(vals[ind])
+                                    ind += 1
+                            elif k==2:
+                                for kr in range(self.nodal_res[0].ncomp[kk]):
+                                    ppres[kr].append(vals[ind])
+                                    ind += 1
+                            elif k==3:
+                                for kr in range(self.nodal_res[0].ncomp[kk]):
+                                    pres_head[kr].append(vals[ind])
+                                    ind += 1
+                            elif k==4:
+                                for kr in range(self.nodal_res[0].ncomp[kk]):
+                                    temp[kr].append(vals[ind])
+                                    ind += 1
+                    if res_type=='displacements':
+                        step.nodal.disp = disp
+                        step.nodal.rot = rot
+                        step.nodal.ppres = ppres
+                        step.nodal.pres_head = pres_head
+                        step.nodal.temp = temp
+                    elif res_type=='reactions':
+                        step.nodal.r_disp = disp
+                        step.nodal.r_rot = rot
+                        step.nodal.r_ppres = ppres
+                        step.nodal.r_pres_head = pres_head
+                    elif res_type=='accelerations':
+                        step.nodal.a_disp = disp
+    ##                    step.nodal.a_rot = rot
+                    elif res_type=='velocities':
+                        step.nodal.v_disp = disp
+    ##                    step.nodal.v_rot = rot
+                    elif res_type=='init':
+                        step.nodal.i_disp = disp
+                        step.nodal.i_rot = rot
+                        step.nodal.i_ppres = ppres
+                        step.nodal.i_pres_head = pres_head
+                else:
+                    offset = ncomp*self.nNodes*4
+                    f.seek(offset,1)
         f.close()
         self.nodalRead = True
 

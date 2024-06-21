@@ -189,3 +189,8 @@ read_results:
 vtktools:
 - get_section: no origin if vector is displacement (this is only meant for nodal
   coordinates)
+
+v1.3.19
+21.06.2024
+read_results:
+- reading modes for eigenvalue analysis
