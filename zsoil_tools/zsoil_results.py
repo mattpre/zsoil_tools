@@ -915,7 +915,6 @@ class zsoil_results:
         ncomp = 0
         for rt in self.nodal_res[0].res_labels:
             if res_type in ['displacements','reactions','init']:
-                print(rt)
                 if rt=='DISP_TRA':
                     ncomp += self.nodal_res[0].ncomp[self.nodal_res[0].res_labels.index(rt)]
                 elif rt=='DISP_ROT':
@@ -2536,7 +2535,10 @@ class zsoil_results:
             elist = range(self.nVolumics)
         if 'vol' in ele_type:
             eg = self.ele_groups[self.ele_group_labels.index('VOLUMICS')]
-            eg.res_labels.append('PRINC')
+            if res_type=='stress':
+                eg.res_labels.append('PRINCS')
+            else:
+                eg.res_labels.append('PRINCE')
             eg.ncomp.append(3)
             eg.comp_labels.append(['1','2','3'])
             for kt in steps:
@@ -2568,22 +2570,24 @@ class zsoil_results:
                         mat = numpy.array([[sxx[kele],sxy[kele],sxz[kele]],
                                            [sxy[kele],syy[kele],syz[kele]],
                                            [sxz[kele],syz[kele],szz[kele]]])
-                    eig = la.eig(mat)
-                    ev = [(eig[0][kk],eig[1][kk]) for kk in range(3)]
+                    eig,ev = la.eig(mat)
+                    sorted_indexes = numpy.flip(numpy.argsort(eig))
+                    eig = eig[sorted_indexes]
+                    ev = ev[:,sorted_indexes]
                     if res_type=='stress':
-                        step.vol.princs[0].append(ev[0][0])
-                        step.vol.princs[1].append(ev[1][0])
-                        step.vol.princs[2].append(ev[2][0])
-                        step.vol.eigvs[0].append(ev[0][1])
-                        step.vol.eigvs[1].append(ev[1][1])
-                        step.vol.eigvs[2].append(ev[2][1])
+                        step.vol.princs[0].append(eig[0])
+                        step.vol.princs[1].append(eig[1])
+                        step.vol.princs[2].append(eig[2])
+                        step.vol.eigvs[0].append(ev[0])
+                        step.vol.eigvs[1].append(ev[1])
+                        step.vol.eigvs[2].append(ev[2])
                     elif res_type=='strain':
-                        step.vol.prince[0].append(ev[0][0])
-                        step.vol.prince[1].append(ev[1][0])
-                        step.vol.prince[2].append(ev[2][0])
-                        step.vol.eigve[0].append(ev[0][1])
-                        step.vol.eigve[1].append(ev[1][1])
-                        step.vol.eigve[2].append(ev[2][1])
+                        step.vol.prince[0].append(eig[0])
+                        step.vol.prince[1].append(eig[1])
+                        step.vol.prince[2].append(eig[2])
+                        step.vol.eigve[0].append(ev[0])
+                        step.vol.eigve[1].append(ev[1])
+                        step.vol.eigve[2].append(ev[2])
 
     def compute_invariants(self,ele_type='vol',res_type='stress',steps=0):
         if steps==0:

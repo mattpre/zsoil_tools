@@ -17,7 +17,7 @@ res2import = {'NODAL':['DISP_TRA','DISP_ROT','PPRESS','PRES_HEAD','TEMP'],
               'BEAMS':['FORCES','MOMENT'],
               'TRUSSES':['FORCE'],
               'SHELLS':['SMFORCE','SQFORCE','SMOMENT','THICK'],
-              'VOLUMICS':['STRESESS','STRESSES','STRAINS','STR_LEVEL','PRINC','FLU_VELOC','SATUR','DAMAGE'],
+              'VOLUMICS':['STRESESS','STRESSES','STRAINS','STR_LEVEL','PRINCS','FLU_VELOC','SATUR','DAMAGE'],
               'CONTACT':['STRESESS','STRESSES','STRAINS','PLA_CODE','STR_LEVEL'],
               'MEMBRANE':['SMFORCE','STRAINS','STR_LEVEL','PRINC']}
 
@@ -29,7 +29,8 @@ def create_cell_data(mesh,eg,res_group,step_res,res_labels,nEle,
              'STRAINS':'strain',
              'STR_LEVEL':'str_level',
              'THICK':'thick',
-             'PRINC':'princ',
+             'PRINCE':'prince',
+             'PRINCS':'princs',
              'PLA_CODE':'pla_code',
              'PPRES':'ppres',
              'PRES_HEAD':'pres_head',
@@ -543,7 +544,7 @@ def get_section_diagram(mesh,plane):
 def get_section(mesh,plane,origin=0,loc_syst=[],matlist=[],EFlist=[],LFlist=[],
                 thlist=[],disp=False):
 
-    if origin==0:
+    if type(origin) is int:
         origin = plane.GetOrigin()
     if type(origin) is tuple:
         origin = np.array(origin)
@@ -555,6 +556,7 @@ def get_section(mesh,plane,origin=0,loc_syst=[],matlist=[],EFlist=[],LFlist=[],
             base = np.array([np.cross(normal,(1,0,0)),(1,0,0)])
     else:
         base = [loc_syst[1],loc_syst[2]]
+    base = loc_syst
 
     cutEdges = vtk.vtkCutter()
     cutEdges.SetInputData(mesh)
@@ -592,11 +594,19 @@ def get_section(mesh,plane,origin=0,loc_syst=[],matlist=[],EFlist=[],LFlist=[],
                         pt1 = points.GetPoint(id1)
                         if disp:
                             # displacements are relative, so no distance from origin
-                            vals = [M.GetTuple(kl),N.GetTuple(kl),T.GetTuple(kl),
-                                    [project_on_plane(base,origin*0,D.GetTuple(id0)),
-                                     project_on_plane(base,origin*0,D.GetTuple(id1))]]
+                            if cdata.HasArray('SMFORCE'):
+                                vals = [M.GetTuple(kl),N.GetTuple(kl),T.GetTuple(kl),th.GetTuple1(kl),
+                                        [project_on_plane(base,origin*0,D.GetTuple(id0)),
+                                         project_on_plane(base,origin*0,D.GetTuple(id1))]]
+                            else:
+                                vals = [mat.GetTuple1(kl),
+                                        [project_on_plane(base,origin*0,D.GetTuple(id0)),
+                                         project_on_plane(base,origin*0,D.GetTuple(id1))]]
                         else:
-                            vals = [M.GetTuple(kl),N.GetTuple(kl),T.GetTuple(kl)]
+                            if cdata.HasArray('SMFORCE'):
+                                vals = [M.GetTuple(kl),N.GetTuple(kl),T.GetTuple(kl),th.GetTuple1(kl)]
+                            else:
+                                vals = [mat.GetTuple1(kl)]
                         segments.append([project_on_plane(base,origin,pt0),
                                          project_on_plane(base,origin,pt1),vals])
 ##                if id1>id0:
@@ -618,7 +628,10 @@ def get_section_vol(mesh,plane,loc_syst,celldata=False,
         output0 = cut.GetOutput()
 ##        print(output0.GetNumberOfCells())
         cdata = output0.GetCellData()
-        mat = cdata.GetArray('mat')
+        if cdata.GetArray('mat'):
+            mat = cdata.GetArray('mat')
+        else:
+            mat = cdata.GetArray('Material')
         EF = cdata.GetArray('EF')
         LF = cdata.GetArray('LF')
         extract = vtk.vtkExtractCells()
@@ -1236,4 +1249,75 @@ def project_on_polyline(xx,yy,pts):
             else:
                 x0 += dL
     return x0
-            
+
+def get_joined_polygons(patches0,cvect):
+    # convert list of patches to connected polygons for each distinct value in cvect
+    tags = sorted(list(set(cvect)))
+
+    Polygons = []
+    Cvect = []
+    for tag in tags:
+        pd = vtk.vtkPolyData()
+        pts = vtk.vtkPoints()
+        cells = vtk.vtkCellArray()
+        for kp,patch in enumerate(patches0):
+            if cvect[kp]==tag:
+                ids = vtk.vtkIdList()
+                for kpt in range(len(patch.xy)-1):
+                    pts.InsertNextPoint(patch.xy[kpt][0],patch.xy[kpt][1],0)
+                    ids.InsertNextId(pts.GetNumberOfPoints()-1)
+                cells.InsertNextCell(ids)
+        pd.SetPoints(pts)
+        pd.SetPolys(cells)
+
+        cpd = vtk.vtkCleanPolyData()
+        cpd.SetInputData(pd)
+        cpd.Update()
+        fe = vtk.vtkFeatureEdges()
+        fe.BoundaryEdgesOn()
+        fe.NonManifoldEdgesOff()
+        fe.ManifoldEdgesOff()
+        fe.FeatureEdgesOff()
+        fe.SetInputConnection(cpd.GetOutputPort())
+        fe.Update()
+
+        boundary = fe.GetOutput()
+
+        if False:
+            w = vtk.vtkPolyDataWriter()
+            w.SetFileName('poly_%i.vtk'%(tag))
+            w.SetInputData(pd)
+            w.Write()
+
+        vertices = {}
+        for kc in range(boundary.GetNumberOfCells()):
+            cell = boundary.GetCell(kc)
+            if cell.GetPointId(0) not in vertices:
+                vertices[cell.GetPointId(0)] = []
+            if cell.GetPointId(1) not in vertices:
+                vertices[cell.GetPointId(1)] = []
+            vertices[cell.GetPointId(0)].append(kc)
+            vertices[cell.GetPointId(1)].append(kc)
+
+        lines = [kc for kc in range(boundary.GetNumberOfCells())]
+        while len(lines):
+            kc = lines[0]
+            polyIds = [boundary.GetCell(kc).GetPointId(0)]
+            while len(polyIds)<1e5:
+                cell = boundary.GetCell(kc)
+                nextId = cell.GetPointId(1)
+                cellind = lines.index(kc)
+                lines.pop(cellind)
+                if nextId==polyIds[0]:
+                    pts = [(boundary.GetPoint(kp)[0],
+                            boundary.GetPoint(kp)[1]) for kp in polyIds]
+                    Polygons.append(Polygon(pts))
+                    Cvect.append(tag)
+                    polyIds = []
+                    break
+                else:
+                    polyIds.append(nextId)
+                    ind = vertices[nextId].index(kc)
+                    kc = vertices[nextId][(ind+1)%2]
+
+    return Polygons, Cvect
