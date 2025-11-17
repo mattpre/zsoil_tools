@@ -39,6 +39,23 @@ def eformat(f, prec, exp_digits):
     # add 1 to digits as 1 is taken by sign +/-
     return "%se%+0*d"%(mantissa, exp_digits+1, int(exp))
 
+def get_elist(string):
+    elist = []
+    vv = string.split()
+    for v in vv:
+        aa = v
+        if 'A' in aa:
+            stride = 1
+            if 'P' in aa:
+                stride = int(aa.split('P')[1])
+                aa = aa.split('P')[0]
+            start = int(aa.split('A')[0])
+            end = int(aa.split('A')[1])
+            elist.extend(list(range(start,end+1,stride)))
+        else:
+            elist.append(int(aa))
+    return elist
+
 class mesh:
     def __init__(self):
         self.nElements = 0
@@ -354,6 +371,47 @@ class Pile:
         self.inel = []
         self.points = []
 
+class Borehole:
+    def __init__(self):
+        self.name = str()
+        self.crd = np.array([0,0,0])
+        self.nLayers = 0
+        self.layers = []
+
+class PointLoadOE:
+    def __init__(self):
+        self.name = str()
+        self.moving_load = False
+        self.move_path = 0
+        self.LF = 0
+        self.EF = 0
+        self.type = 0
+        self.velocity = 0
+        self.acceleration = 0
+        self.point = np.array([0,0,0])
+        self.force = np.array([0,0,0])
+        self.moment = np.array([0,0,0])
+        self.coord_syst = 0
+        self.vector = np.array([0,0,0])
+        self.elist = []
+
+class LineLoadOE:
+    def __init__(self):
+        self.name = str()
+        self.moving_load = False
+        self.move_path = 0
+        self.LF = 0
+        self.EF = 0
+        self.type = 0
+        self.velocity = 0
+        self.acceleration = 0
+        self.points = [np.array([0,0,0]),np.array([0,0,0])]
+        self.forces = [np.array([0,0,0]),np.array([0,0,0])]
+        self.moments = [np.array([0,0,0]),np.array([0,0,0])]
+        self.coord_syst = 0
+        self.vector = np.array([0,0,0])
+        self.elist = []
+
 class zsoil_inp:
     """Main data structure
     """
@@ -413,6 +471,9 @@ class zsoil_inp:
         self.nSurfaceMasses = 0
         self.nFiberMaterials = 0
         self.nPBCs = 0
+        self.nPointLoadsOE = 0
+        self.nLineLoadsOE = 0
+        self.nSurfaceLoadsOE = 0
 
         self.coords = [[],[],[]]
         self.vol = ele_info()
@@ -443,16 +504,22 @@ class zsoil_inp:
         self.PBCs = []
         self.nPiles = 0
         self.piles = []
+        self.nBoreholes = 0
+        self.boreholes = []
+        self.pointLoadsOE = []
+        self.lineLoadsOE = []
+        self.surfLoadsOE = []
 
         self.DRMext = []
         self.DRMint = []
 
         self.vtkVol = 0
+        self.vtkQuad = 0
         self.vtkShell = 0
 
     def read_inp(self,sections=['ing','i0g','ibg','ilg','ics','icg','inb',
                                 'pob','gob','inl','ibf','gsl','itg',
-                                'brc','ipg','pil'],
+                                'brc','ipg','pil','gbh','ple'],
                  debug=False):
         ## Read inp file
         # 'ing': nodes
@@ -471,39 +538,108 @@ class zsoil_inp:
         # 'brc': reinforcement sets
         # 'ipg': seepage elements
         # 'pil': piles
+        # 'gbh': boreholes
+        # 'ple': loads on elements
 
         file = open(self.pathname + '/' + self.problem_name + '.inp')
         
         line = file.readline()
         line = file.readline()
-        self.analysis_type = int(line.split()[0])
-        self.nVolumics = int(line.split()[11])
-        self.nVolumics2D = int(line.split()[9])
-        self.nNodes = int(line.split()[5])
-        self.nBCs = int(line.split()[6])
-        self.nSurfaceLoads = int(line.split()[14])
-        self.nNodalLoads = int(line.split()[7])
-        self.nMaterials = int(line.split()[2])
-        self.nSeepage = int(line.split()[17])
-        self.nEF = int(line.split()[3]) # not correct in v16.03
-        self.nLF = int(line.split()[4]) # not correct in v16.03
-        self.nThickShells = int(line.split()[24])
-        self.nShells += self.nThickShells
-        self.nTrusses = int(line.split()[22])
-        self.nPBC = int(line.split()[13])
-        self.nContactsCont = int(line.split()[25])
-        self.nPiles = int(line.split()[10])
-        line = file.readline()
-        self.nContactsStruct = int(line.split()[1])
-        self.nShells += int(line.split()[14])
-        self.nBeams = int(line.split()[8])
-        self.nBeamLoads = int(line.split()[8])
-        self.nNodalMasses = int(line.split()[23])
-        line = file.readline()
-        self.nPoints = int(line.split()[0])
-        self.nLines = int(line.split()[2])
-        self.nArcs = int(line.split()[3])
-        self.nPlines = int(line.split()[1])
+        if not '#' in line:   # legacy inp format ( < v25)
+            self.analysis_type = int(line.split()[0])
+            self.nVolumics = int(line.split()[11])
+            self.nVolumics2D = int(line.split()[9])
+            self.nNodes = int(line.split()[5])
+            self.nBCs = int(line.split()[6])
+            self.nSurfaceLoads = int(line.split()[14])
+            self.nNodalLoads = int(line.split()[7])
+            self.nMaterials = int(line.split()[2])
+            self.nSeepage = int(line.split()[17])
+            self.nEF = int(line.split()[3]) # not correct in v16.03
+            self.nLF = int(line.split()[4]) # not correct in v16.03
+            self.nThickShells = int(line.split()[24])
+            self.nShells += self.nThickShells
+            self.nTrusses = int(line.split()[22])
+            self.nPBC = int(line.split()[13])
+            self.nContactsCont = int(line.split()[25])
+            self.nPiles = int(line.split()[10])
+            line = file.readline()
+            self.nContactsStruct = int(line.split()[1])
+            self.nShells += int(line.split()[14])
+            self.nBeams = int(line.split()[8])
+            self.nBeamLoads = int(line.split()[8])
+            self.nNodalMasses = int(line.split()[23])
+            line = file.readline()
+            self.nPoints = int(line.split()[0])
+            self.nLines = int(line.split()[2])
+            self.nArcs = int(line.split()[3])
+            self.nPlines = int(line.split()[1])
+        else:
+            self.analysis_type = int(line.split()[0])
+            line = file.readline()
+            while not 'ASSOCIATED_PROJECTS' in line:
+                nElements = int(line.split()[0])
+                if 'materials' in line:
+                    self.nMaterials = nElements
+                elif 'Existence functions' in line:
+                    self.nEF = nElements
+                elif 'continuum 3D elements' in line:
+                    self.nVolumics = nElements
+                elif 'continuum 2D elements' in line:
+                    self.nVolumics2D = nElements
+                elif 'nodes' in line:
+                    self.nNodes = nElements
+                elif 'boundary conditions' in line:
+                    self.nBCs = nElements
+                elif 'surface loads' in line:
+                    self.nSurfaceLoads = nElements
+                elif 'nodal forces' in line:
+                    self.nNodalLoads = nElements
+                elif 'water Seepage' in line:
+                    self.nSeepage = nElements
+##                elif 'Existence' in line:
+##                    self.nLF = nElements
+                elif 'shell elements' in line:
+                    self.nThickShells = nElements
+                elif 'Shell one layer elements' in line:
+                    self.nShells += nElements
+                elif 'truss elements' in line:
+                    self.nTrusses = nElements
+                elif 'water bound' in line:
+                    self.nPBC = nElements
+                elif 'inetrfaces' in line:
+                    self.nContactsCont = nElements
+                elif 'Piles' in line:
+                    self.nPiles = nElements
+                elif 'contact lines' in line:
+                    self.nContactsStruct = nElements
+##                elif 'Existence' in line:
+##                    self.nShells += nElements
+                elif 'number of Beams relaxation codes' in line:
+                    pass
+                elif 'number of Beams' in line:
+                    self.nBeams = nElements
+                elif 'beam loads' in line:
+                    self.nBeamLoads = nElements
+                elif 'nodal masses' in line:
+                    self.nNodalMasses = nElements
+                elif 'geometrical points' in line:
+                    self.nPoints = nElements
+                elif 'of lines' in line:
+                    self.nLines = nElements
+                elif 'of arcs' in line:
+                    self.nArcs = nElements
+                elif 'of polylines' in line:
+                    self.nPlines = nElements
+                elif 'of boreholes' in line:
+                    self.nBoreholes = nElements
+                elif 'Point loads on elements' in line:
+                    self.nPointLoadsOE = nElements
+                elif 'Line loads on elements' in line:
+                    self.nLineLoadsOE = nElements
+                elif 'Surface loads on elements' in line:
+                    self.nSurfLoadsOE = nElements
+                line = file.readline()
 
         for line in iter(lambda: file.readline(), ""):
             if debug:
@@ -599,6 +735,7 @@ class zsoil_inp:
                     line = file.readline()
                     if 'BEL2' in line:
                         v = line.split()
+                        self.num_beams.append(int(v[0]))
                         inel = []
                         for kk in range(2):
                             inel.append(int(v[3+kk]))
@@ -615,7 +752,6 @@ class zsoil_inp:
                         if int(line.split()[0])==1:
                             file.readline()
                             file.readline()
-                        self.num_beams.append(int(v[0]))
             elif '.itg' in line and 'itg' in sections:
                 if debug:
                     print('reading itg')
@@ -931,6 +1067,9 @@ class zsoil_inp:
                     print('reading inl')
                 for kp in range(self.nNodalLoads):
                     line = file.readline()
+                    if len(line)==1:
+                        self.nNodalLoad = 0
+                        break
                     v = line.split()
                     nLoad = [int(v[1]),[float(val) for val in v[4:10]],int(v[10])]
                     line = file.readline()
@@ -1198,7 +1337,75 @@ class zsoil_inp:
                     aPile.length = np.linalg.norm(aPile.points[0]-aPile.points[-1])
 
                     self.piles.append(aPile)
-                    
+            elif '.gbh' in line:
+                self.nBoreholes = int(float(file.readline()))
+                line = file.readline()
+                for _ in range(int(float(line.split()[1]))):
+                    file.readline()
+                line = file.readline()
+                for _ in range(int(float(line.split()[1]))):
+                    file.readline()
+                for kbh in range(self.nBoreholes):
+                    bh = Borehole()
+                    bh.name = file.readline()[:-1]
+                    v = file.readline().split()
+                    for kc in range(3):
+                        bh.crd[kc] = float(v[kc+1])
+                    bh.nLayers = int(float(v[4]))
+                    for kl in range(bh.nLayers):
+                        v = file.readline().split()
+                        bh.layers.append([float(v[0]),float(v[1]),int(float(v[2]))])
+                    self.boreholes.append(bh)
+            elif '.ple' in line:
+                for kload in range(self.nPointLoadsOE+self.nLineLoadsOE+self.nSurfLoadsOE):
+                    line = next(file)
+                    if 'POINT_LOAD' in line:
+                        # not yet implemented
+                        while not 'Acceleration' in line:
+                            line = next(file)
+                    elif 'LINE_LOAD' in line:
+                        ll = LineLoadOE()
+                        ll.name = next(file)[:-1]
+                        vv = next(file).split()
+                        ll.points[0] = np.array([float(v) for v in vv[1:]])
+                        vv = next(file).split()
+                        ll.forces[0] = np.array([float(v) for v in vv[1:]])
+                        vv = next(file).split()
+                        ll.moments[0] = np.array([float(v) for v in vv[1:]])
+                        vv = next(file).split()
+                        ll.points[1] = np.array([float(v) for v in vv[1:]])
+                        vv = next(file).split()
+                        ll.forces[1] = np.array([float(v) for v in vv[1:]])
+                        vv = next(file).split()
+                        ll.moments[1] = np.array([float(v) for v in vv[1:]])
+                        ll.coord_syst = int(next(file).split()[1])
+                        vv = next(file).split()
+                        ll.vector = np.array([float(v) for v in vv[1:]])
+                        line = next(file)
+                        if int(line)>0:
+                            line = next(file)
+                            elestr = str()
+                            while not 'MOVING_LOAD' in line:
+                                elestr += line[:-1]
+                                line = next(file)
+                            elist = get_elist(elestr)
+                        else:
+                            elist = []
+                        ll.elist = elist
+##                        print(elestr)
+##                        print(elist)
+
+                        ll.moving_load = int(line.split()[1])
+                        ll.move_path = int(next(file).split()[1])
+                        ll.LF = int(next(file).split()[1])
+                        ll.velocity = float(next(file).split()[1])
+                        ll.acceleration = float(next(file).split()[1])
+
+                        self.lineLoadsOE.append(ll)
+                    elif 'SURFACE_LOAD' in line:
+                        # not yet implemented
+                        while not 'ACCELERATION' in line:
+                            line = next(file)
                 
             elif 'NUM_MATERIALS' in line:
                 if len(self.materials)==0:  # standard materials
@@ -1666,7 +1873,7 @@ class zsoil_inp:
 
         for kt in range(len(steps)):
             time = steps[kt]
-        
+
             self.vtkVol = vtk.vtkUnstructuredGrid()
             points = vtk.vtkPoints()
             for kn in range(self.nNodes):
@@ -1688,46 +1895,82 @@ class zsoil_inp:
                 a.SetName(names[ka])
                 vol_arrays.append(a)
 
-            if self.nVolumics and self.nVolumics2D:
-                print('Error: Currently 2D and 3D volumics cannot be handeled together')
-            if self.nVolumics:
-                for ke in range(self.nVolumics):
-                    if self.exists(self.vol.EF[ke],time):
+            types = []
+            for ke in range(self.nVolumics+self.nVolumics2D):
+                inel = self.vol.inel[ke]
+                if self.exists(self.vol.EF[ke],time):
+                    if len(inel)==8:
                         anEle = vtk.vtkHexahedron()
                         for kk in range(8):
-                            anEle.GetPointIds().SetId(kk,self.vol.inel[ke][kk]-1)
+                            anEle.GetPointIds().SetId(kk,inel[kk]-1)
                         volumics.InsertNextCell(anEle)
-                        vol_arrays[0].InsertNextTuple1(self.vol.mat[ke])
-                        vol_arrays[1].InsertNextTuple1(self.vol.EF[ke])
-                        vol_arrays[2].InsertNextTuple1(self.vol.LF[ke])
-                        vol_arrays[3].InsertNextTuple1(self.vol.rm1[ke])
-                        vol_arrays[4].InsertNextTuple1(self.vol.rm2[ke])
-                self.vtkVol.SetPoints(points)
-                self.vtkVol.SetCells(vtk.VTK_HEXAHEDRON,volumics)
-            else:
-                for ke in range(self.nVolumics2D):
-                    if self.exists(self.vol.EF[ke],time):
+                        types.append(vtk.VTK_HEXAHEDRON)
+                    elif len(inel)==4:
                         anEle = vtk.vtkQuad()
                         for kk in range(4):
-                            anEle.GetPointIds().SetId(kk,self.vol.inel[ke][kk]-1)
+                            anEle.GetPointIds().SetId(kk,inel[kk]-1)
                         volumics.InsertNextCell(anEle)
-                        vol_arrays[0].InsertNextTuple1(self.vol.mat[ke])
-                        vol_arrays[1].InsertNextTuple1(self.vol.EF[ke])
-                        vol_arrays[2].InsertNextTuple1(self.vol.LF[ke])
-                        vol_arrays[3].InsertNextTuple1(self.vol.rm1[ke])
-                        vol_arrays[4].InsertNextTuple1(self.vol.rm2[ke])
-                self.vtkVol.SetPoints(points)
-                self.vtkVol.SetCells(vtk.VTK_QUAD,volumics)
+                        types.append(vtk.VTK_QUAD)
+                    vol_arrays[0].InsertNextTuple1(self.vol.mat[ke])
+                    vol_arrays[1].InsertNextTuple1(self.vol.EF[ke])
+                    vol_arrays[2].InsertNextTuple1(self.vol.LF[ke])
+                    vol_arrays[3].InsertNextTuple1(self.vol.rm1[ke])
+                    vol_arrays[4].InsertNextTuple1(self.vol.rm2[ke])
+            self.vtkVol.SetPoints(points)
+            self.vtkVol.SetCells(types,volumics)
             
             data = self.vtkVol.GetCellData()
             for ka in range(5):
                 data.AddArray(vol_arrays[ka])
             
             writer = vtk.vtkXMLUnstructuredGridWriter();
-            writer.SetDataModeToAscii()
-##            writer.SetDataModeToBinary()
+##            writer.SetDataModeToAscii()
+            writer.SetDataModeToBinary()
             writer.SetFileName(pathname+'/'+filename+'_T%i_%i'%(time,(time-int(time))*100)+'.vtu')
             writer.SetInputData(self.vtkVol)
+            writer.Write()
+
+    def write_boreholes_to_vtu(self,filename,pathname='.',transform=False,radius=0.5,nSides=6):
+
+            pd = vtk.vtkPolyData()
+            points = vtk.vtkPoints()
+            lines = vtk.vtkCellArray()
+            matIds = vtk.vtkIntArray()
+            matIds.SetName('Material')
+            num = vtk.vtkIntArray()
+            num.SetName('Borehole Nb')
+            for kbh in range(self.nBoreholes):
+                bh = self.boreholes[kbh]
+                points.InsertNextPoint(bh.crd)
+                for layer in bh.layers:
+                    points.InsertNextPoint(bh.crd+np.array([0,layer[1],0]))
+                    ids = vtk.vtkIdList()
+                    ids.InsertNextId(points.GetNumberOfPoints()-2)
+                    ids.InsertNextId(points.GetNumberOfPoints()-1)
+                    lines.InsertNextCell(ids)
+                    matIds.InsertNextTuple1(layer[2])
+                    num.InsertNextTuple1(kbh+1)
+            pd.SetPoints(points)
+            pd.SetPolys(lines)
+            pd.GetCellData().AddArray(matIds)
+            pd.GetCellData().AddArray(num)
+
+            cpd = vtk.vtkCleanPolyData()
+            cpd.SetInputData(pd)
+            cpd.Update()
+
+            tf = vtk.vtkTubeFilter()
+            tf.SetInputConnection(cpd.GetOutputPort())
+            tf.SetRadius(radius)
+            tf.SetNumberOfSides(nSides)
+            tf.Update()
+            
+            writer = vtk.vtkXMLPolyDataWriter();
+##            writer.SetDataModeToAscii()
+            writer.SetDataModeToBinary()
+            writer.SetFileName(pathname+'/'+filename+'.vtp')
+            writer.SetInputConnection(tf.GetOutputPort())
+##            writer.SetInputData(pd)
             writer.Write()
 
     def create_ug(self):

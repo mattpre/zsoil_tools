@@ -261,6 +261,11 @@ class time_step:
         # membrane results:
         self.mem = mem()
 
+class load:
+    def __init__(self,header):
+        self.header = header
+        self.data = []
+
 class mode:
     def __init__(self,dim):
         self.nodal = nodal()
@@ -342,6 +347,9 @@ class zsoil_results:
         self.piles = []
         self.nails = []
         self.anchors = []
+
+        self.nLoads = 0
+        self.loads = []
 
         self.lists = []
         self.nodallinks = []
@@ -513,6 +521,7 @@ class zsoil_results:
             elif 'NODE' in line[:4]:
                 self.nNodes = int(line.split()[1])
                 crd = [[] for k in range(dim)]
+                self.nodes_l_rec = []
                 for k in range(self.nNodes):
                     line = lines[kl]
                     kl += 1
@@ -522,6 +531,9 @@ class zsoil_results:
                     if 'L_REC' in line:
                         line = lines[kl]
                         kl += 1
+                        self.nodes_l_rec.append(line)
+                    else:
+                        self.nodes_l_rec.append(0)
                 self.coords = crd
             elif 'JOB_TYPE' in line:
                 self.jobtype = line.split()[1]
@@ -720,6 +732,20 @@ class zsoil_results:
                             if not eles[0]==self.piles[kp].volumics[-1][-1]:
                                 self.piles[kp].volumics[-1].append(eles[0])
                             self.piles[kp].volumics.append([eles[-1]])
+            elif 'LOAD ' in line:
+                nLoads = int(line.split()[1])
+                self.nLoads = nLoads
+                for kload in range(nLoads):
+                    header = lines[kl]
+                    aLoad = load(header)
+                    kl += 1
+                    while not lines[kl][1]==' ':
+                        if 'LOADTIME' in lines[kl]:
+                            break
+                        aLoad.data.extend([float(v) for v in lines[kl].split()])
+                        kl += 1
+                    self.loads.append(aLoad)
+                    
                         
 
         file.close()
@@ -2307,35 +2333,38 @@ class zsoil_results:
                     elif '[' in line:
                         if 'UNIT WEIGHT PARAMETERS' in line:
                             line = file.readline()
-                            while not '[' in line and len(line)>4 and not line[:20]=='-'*20:
+                            while not '[' in line and len(line)>4 and not line[:16]=='-'*16:
                                 if ':' in line:
                                     v = line.split(':',1)
                                     mat.unit_weight[v[0]] = float(v[1])
                                 line = file.readline()
                         elif 'ELASTIC PARAMETERS' in line:
                             line = file.readline()
-                            while not '[' in line and len(line)>4 and not line[:20]=='-'*20:
+                            while not '[' in line and len(line)>4 and not line[:16]=='-'*16:
                                 if ':' in line:
                                     v = line.split(':',1)
                                     mat.elastic[(v[0].lstrip()).rstrip()] = float(v[1])
                                 line = file.readline()
                         elif 'FLOW PARAMETERS' in line:
                             line = file.readline()
-                            while not '[' in line and len(line)>4 and not line[:20]=='-'*20:
+                            while not '[' in line and len(line)>4 and not line[:16]=='-'*16:
                                 if ':' in line:
                                     v = line.split(':',1)
-                                    mat.flow[(v[0].lstrip()).rstrip()] = float(v[1])
+                                    try:
+                                        mat.flow[(v[0].lstrip()).rstrip()] = float(v[1])
+                                    except:
+                                        mat.flow[(v[0].lstrip()).rstrip()] = v[1][:-1]
                                 line = file.readline()
                         elif 'NONLINEAR PARAMETERS' in line:
                             line = file.readline()
-                            while not '[' in line and len(line)>4 and not line[:20]=='-'*20:
+                            while not '[' in line and len(line)>4 and not line[:16]=='-'*16:
                                 if ':' in line:
                                     v = line.split(':',1)
                                     mat.nonlinear[(v[0].lstrip()).rstrip()] = float(v[1])
                                 line = file.readline()
                         elif 'INITIAL STATE KO PARAMETERS' in line:
                             line = file.readline()
-                            while not '[' in line and len(line)>4 and not line[:20]=='-'*20:
+                            while not '[' in line and len(line)>4 and not line[:16]=='-'*16:
                                 if ':' in line:
                                     v = line.split(':',1)
                                     mat.initial[(v[0].lstrip()).rstrip()] = float(v[1])

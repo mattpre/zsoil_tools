@@ -199,3 +199,8 @@ v1.3.20
 read_results & vtktools:
 - principal stresses and strains, writing and computing, values sorted (high to low)
 - get_joined_polygons for combining matplotlib patches to connected polygons
+
+v1.3.21
+read_inp:
+- updates for v25 (header info, probably incomplete)
+- write_vtu: unified method for writing quads and hex
