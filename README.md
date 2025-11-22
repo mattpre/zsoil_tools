@@ -7,7 +7,7 @@ git clone https://github.com/mattpre/zsoil_tools.git
 cd zsoil_tools
 python setup.py develop (might have to provide full path to python.exe)
 
-aide-mémoire MP:
+aide-memoire MP:
 python setup.py bdist_egg
 git add .
 git commit -m"some message"

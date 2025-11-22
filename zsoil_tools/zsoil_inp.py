@@ -1361,22 +1361,23 @@ class zsoil_inp:
                     line = next(file)
                     if 'POINT_LOAD' in line:
                         pl = PointLoadOE()
+                        pl.LF = int(line.split()[2])
                         line = next(file)
                         pl.name = line[:-1]
-                        pl.LF = int(line.split()[2])
                         vv = next(file).split()
-                        pl.points[0] = np.array([float(v) for v in vv[1:]])
+                        pl.point = np.array([float(v) for v in vv[1:]])
                         vv = next(file).split()
-                        pl.forces[0] = np.array([float(v) for v in vv[1:]])
+                        pl.force = np.array([float(v) for v in vv[1:]])
                         vv = next(file).split()
-                        pl.moments[0] = np.array([float(v) for v in vv[1:]])
+                        pl.moment = np.array([float(v) for v in vv[1:]])
                         while not 'Acceleration' in line:
                             line = next(file)
+                        self.pointLoadsOE.append(pl)
                     elif 'LINE_LOAD' in line:
                         ll = LineLoadOE()
+                        ll.LF = int(line.split()[2])
                         line = next(file)
                         ll.name = line[:-1]
-                        ll.LF = int(line.split()[2])
                         vv = next(file).split()
                         ll.points[0] = np.array([float(v) for v in vv[1:]])
                         vv = next(file).split()

@@ -1,33 +1,32 @@
 Metadata-Version: 2.1
-Name: zsoil-tools
-Version: 1.3.20
+Name: zsoil_tools
+Version: 1.3.21
 Summary: Tools for pre- and postprocessing ZSoil data
-Home-page: http:www.geomod.ch
-Author: Matthias Preisig
-Author-email: mpreisig@geomod.ch
+Author-email: Matthias Preisig <mpreisig@geomod.ch>
 License: GNU AGPLv3
-Keywords: ZSoil finite elements
-Platform: UNKNOWN
+Project-URL: Homepage, http://www.geomod.ch
+Keywords: ZSoil,finite elements
 Classifier: Development Status :: 4 - Beta
 Classifier: License :: OSI Approved :: GNU Affero General Public License v3
-Classifier: Programming Language :: Python :: 2.7
 Classifier: Programming Language :: Python :: 3.7
+Description-Content-Type: text/markdown
 License-File: LICENCE.txt
+Requires-Dist: xlsxwriter
+Requires-Dist: numpy
+Requires-Dist: vtk
 
-client side:
-pip install git+https://github.com/mattpre/zsoil_tools.git
-
-for development:
-got to directory where source code should be downloaded
-git clone https://github.com/mattpre/zsoil_tools.git
-cd zsoil_tools
-python setup.py develop (might have to provide full path to python.exe)
-
-aide-mémoire MP:
-python setup.py bdist_egg
-git add .
-git commit -m"some message"
-git push
-
+client side:
+pip install git+https://github.com/mattpre/zsoil_tools.git
 
+for development:
+got to directory where source code should be downloaded
+git clone https://github.com/mattpre/zsoil_tools.git
+cd zsoil_tools
+python setup.py develop (might have to provide full path to python.exe)
+
+aide-memoire MP:
+python setup.py bdist_egg
+git add .
+git commit -m"some message"
+git push
 

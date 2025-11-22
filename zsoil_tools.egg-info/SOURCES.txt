@@ -1,5 +1,7 @@
 LICENCE.txt
+README.md
 README.rst
+pyproject.toml
 setup.py
 zsoil_tools/ZSmaterial.py
 zsoil_tools/__init__.py
