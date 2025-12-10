@@ -817,7 +817,10 @@ class zsoil_results:
                         for kc in range(ngroup.ncomp[-1]):
                             comps.append(line.split()[kc+2])
                     ngroup.comp_labels.append(comps)
-                    n = int(file.readline())
+                    try:
+                        n = int(file.readline())
+                    except:
+                        n = 0
                 self.nodal_res.append(ngroup)
                 return 1
 
