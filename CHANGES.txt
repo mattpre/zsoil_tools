@@ -204,3 +204,10 @@ v1.3.21
 read_inp:
 - updates for v25 (header info, probably incomplete)
 - write_vtu: unified method for writing quads and hex
+
+v1.3.22
+div
+
+v1.3.23
+zsoil_results:
+- reading of ns-contacts

@@ -61,7 +61,7 @@ class ele_info:
         self.base = []
         self.area = [] # tributary areas for gauss points abs(dXdxi X dXdeta)
         self.type = []  # for contact: 0 for 2D, 1 for 3D, 2 for pile interface, 3 for tip interf.
-        self.parent = []    # element number of beam or shell etc for contacts
+        self.parent = []    # element number of beam or shell etc for contacts, face list for ns-contacts
         self.dir_nodes = [] # for beams, the numbers of nodes indicating local y-direction (2 per beam)
         self.nint = []
         self.nlayer = []
@@ -152,6 +152,13 @@ class cnt:
         self.strain = []
         self.pla_code = []
         self.str_level = []
+        
+class ns_cnt:
+    def __init__(self):
+        self.force = []
+        self.strain = []
+        self.str_level = []
+        self.addout = []
 
 class pile:
     def __init__(self):
@@ -258,6 +265,9 @@ class time_step:
         # 0D contact results (e.g. pile tip interface):
         self.cnt0D = cnt()
 
+        # ns-contact results:
+        self.ns_cnt = ns_cnt()
+
         # membrane results:
         self.mem = mem()
 
@@ -322,6 +332,7 @@ class zsoil_results:
         self.nNodes = 0
         self.nVolumics = 0
         self.nContacts = 0
+        self.nNSContacts = 0
         self.nBeams = 0
         self.nShells = 0
         self.nTrusses = 0
@@ -333,11 +344,13 @@ class zsoil_results:
         self.num_beams = []
         self.num_trusses = []
         self.num_contacts = []
+        self.num_ns_contacts = []
         self.num_membranes = []
 
         self.coords = []
         self.vol = ele_info()
         self.cnt = ele_info()
+        self.ns_cnt = ele_info()
         self.beam = ele_info()
         self.shell = ele_info()
         self.truss = ele_info()
@@ -480,6 +493,14 @@ class zsoil_results:
                 self.cnt.ps.append(int(v[2]))
                 self.cnt.type.append(2)
                 self.cnt.parent.append(self.num_beams[-1])
+            elif ele_type=='NSC2D':
+                v = line.split()
+                inel = [int(v[3])]
+                self.num_ns_contacts.append(int(v[0]))
+                self.nNSContacts += 1
+                self.ns_cnt.inel.append(inel)
+                self.ns_cnt.ps.append(int(v[2]))
+                self.ns_cnt.parent.append(int(v[4]))
             elif ele_type=='Q4' or ele_type=='Q4ES' or ele_type=='B8' or ele_type=='B8ES':
                 v = line.split()
                 self.num_volumics.append(int(v[0]))
@@ -770,6 +791,10 @@ class zsoil_results:
             self.cnt.mat.append(self.property_sets[self.cnt.ps[ele]-1].mat)
             self.cnt.EF.append(self.property_sets[self.cnt.ps[ele]-1].EF)
             self.cnt.LF.append(self.property_sets[self.cnt.ps[ele]-1].LF)
+        for ele in range(self.nNSContacts):
+            self.ns_cnt.mat.append(self.property_sets[self.ns_cnt.ps[ele]-1].mat)
+            self.ns_cnt.EF.append(self.property_sets[self.ns_cnt.ps[ele]-1].EF)
+            self.ns_cnt.LF.append(self.property_sets[self.ns_cnt.ps[ele]-1].LF)
         for ele in range(self.nMembranes):
             self.mem.mat.append(self.property_sets[self.mem.ps[ele]-1].mat)
             self.mem.EF.append(self.property_sets[self.mem.ps[ele]-1].EF)
@@ -838,14 +863,11 @@ class zsoil_results:
                     line = file.readline()
                     lcount += 1
                     egroup.res_labels.append(line.split()[0])
-                    # reading NS-CONTACT is not yet implemented:
-                    if egroup.res_labels[-1]=='ADDOUT':
-                        egroup.ncomp.append(0)
-                    else:
-                        egroup.ncomp.append(int(line.split()[1]))
+                    egroup.ncomp.append(int(line.split()[1]))
                     comps = []
-##                    if egroup.ncomp[-1]>1:
-                    if len(line.split())>2:
+                    if 'ADDOUT' in line:
+                        pass
+                    elif len(line.split())>2:
                         for kc in range(egroup.ncomp[-1]):
                             comps.append(line.split()[kc+2])
                     egroup.comp_labels.append(comps)
@@ -2312,6 +2334,103 @@ class zsoil_results:
 
         f.close()
         self.membranesRead = True
+        
+    def read_s17(self,arg=[]):
+        if not 'NS-CONTACT' in self.ele_group_labels:
+            if self.verbose_level<3:
+                print('No ns-contacts to be read.')
+            return 0
+
+        if '/v+' in arg:
+            verbose = False
+            printN = 100
+        elif '/v' in arg:
+            if len(arg)==2:
+                verbose = True
+                printN = 0
+            elif arg[:2]=='/v':
+                verbose = False
+                printN = int(arg[2:])
+        else:
+            verbose = False
+            printN = 1
+
+        for kele in range(self.nNSContacts):
+            inel = self.ns_cnt.inel[kele]
+            
+        # read Contact:
+        if self.verbose_level<2:
+            print('reading contact results:')
+        gind = self.ele_group_labels.index('NS-CONTACT')
+
+        egroup = self.ele_groups[gind]
+        nint = egroup.ncomp[egroup.res_labels.index('NINT')]
+
+        f = open(self.pathname + '/' + self.problem_name + '.s17', "rb")
+        k = 0
+
+        byte = 'dummy'
+        kkt = -1
+        for kt in range(len(self.steps)):
+            if kt in self.out_steps:
+                kkt += 1
+                if not (verbose==True or self.verbose_level>=2):
+                    if kkt%printN==0:
+                        print('reading step ' + str(kt+1) + ' out of ' + str(self.nSteps))
+                step = self.give_time_step(kt)
+
+                # initialize result vectors for step kt:
+                for rt in egroup.res_labels:
+                    krt = egroup.res_labels.index(rt)
+                    if rt=='NINT':
+                        step.cnt.nint = [0 for k in range(self.nNSContacts)]
+                    elif rt=='FORCE':
+                        for c in egroup.comp_labels[krt]:
+                            step.ns_cnt.force.append([0 for k in range(self.nNSContacts)])
+                    elif rt=='STRAINS':
+                        for c in egroup.comp_labels[krt]:
+                            step.ns_cnt.strain.append([0 for k in range(self.nNSContacts)])
+                    elif rt=='STR_LEVEL':
+                        step.ns_cnt.str_level = [0 for k in range(self.nNSContacts)]
+                    elif rt=='ADDOUT':
+                        step.ns_cnt.addout.append([0 for k in range(self.nNSContacts)])
+                        step.ns_cnt.addout.append([0 for k in range(self.nNSContacts)])
+
+                # read results for contact (plane and 1D):
+                ncomp = sum(egroup.ncomp)
+                for ke in range(self.nNSContacts):
+                    bytes_read = f.read(4*ncomp)
+                    if bytes_read=='':break
+                    vals = unpack_from('f'*ncomp,bytes_read)
+                    ind = 0
+                    for rt in egroup.res_labels:
+                        krt = egroup.res_labels.index(rt)
+                        if rt=='NINT':
+                            nint = int(vals[ind])
+                            ind += 1
+                        elif rt=='FORCE':
+                            step.ns_cnt.force[0][ke] = vals[ind]
+                            step.ns_cnt.force[1][ke] = vals[ind+1]
+                            ind += 2
+                        elif rt=='STRAINS':
+                            step.ns_cnt.strain[0][ke] = vals[ind]
+                            ind += 1
+                        elif rt=='STR_LEVEL':
+                            step.ns_cnt.str_level[ke] = vals[ind]
+                            ind += 1
+                        elif rt=='ADDOUT':
+                            step.ns_cnt.addout[0][ke] = vals[ind]
+                            step.ns_cnt.addout[1][ke] = vals[ind]
+                            ind += 2
+            else:
+                offset = sum(egroup.ncomp)*2*self.cnt.type.count(0)*4
+                offset += sum(egroup.ncomp)*1*self.cnt.type.count(1)*4
+                offset += sum(egroup.ncomp)*1*self.cnt.type.count(2)*4
+                offset += sum(egroup.ncomp)*2*self.cnt.type.count(3)*4
+                f.seek(offset,1)
+                
+        f.close()
+        self.contactsRead = True
 
     def read_eda(self):
         file = open(self.pathname + '/' + self.problem_name + '.eda')
