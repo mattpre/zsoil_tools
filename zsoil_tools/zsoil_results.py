@@ -102,8 +102,8 @@ class vol:
         self.princs = []    # stresses
         self.prince = []    # strains
         self.eigv = []
-        self.invars = [] #I1, J2
-        self.invare = []    # strains
+        self.invar_stress = [] #I1, J2
+        self.invar_strain = []    # strains
         
 class shell:
     def __init__(self):
@@ -469,7 +469,7 @@ class zsoil_results:
                 self.cnt.inel.append(inel)
                 self.cnt.ps.append(int(v[2]))
                 self.cnt.type.append(1)
-##                self.cnt.parent.append(self.num_shells[-1])
+                self.cnt.parent.append(-1)
             elif ele_type=='C_L2':
                 v = line.split()
                 self.num_contacts.append(int(v[0]))
@@ -482,6 +482,8 @@ class zsoil_results:
                 self.cnt.type.append(0)
                 if self.nBeams:
                     self.cnt.parent.append(self.num_beams[-1])
+                else:
+                    self.cnt.parent.append(-1)
             elif ele_type=='CB_L2':
                 v = line.split()
                 inel = []
@@ -865,7 +867,7 @@ class zsoil_results:
                     egroup.res_labels.append(line.split()[0])
                     egroup.ncomp.append(int(line.split()[1]))
                     comps = []
-                    if 'ADDOUT' in line:
+                    if 'ADDOUT' in line:    # in v25.04 there is an extra character \x00
                         pass
                     elif len(line.split())>2:
                         for kc in range(egroup.ncomp[-1]):
@@ -2742,7 +2744,7 @@ class zsoil_results:
 
     def compute_invariants(self,ele_type='vol',res_type='stress',steps=0):
         if steps==0:
-            steps = range(len(self.steps))
+            steps = self.out_steps#range(len(self.steps))
         if 'vol' in ele_type:
             for kt in steps:
                 if len(steps)*self.nVolumics>1e6:
@@ -2751,10 +2753,10 @@ class zsoil_results:
                 step = self.steps[kt]
                 if res_type=='stress':
                     tensor = step.vol.stress
-                    step.vol.invars = [[],[]]
+                    step.vol.invar_stress = [[],[]]
                 elif res_type=='strain':
                     tensor = step.vol.strain
-                    step.vol.invare = [[],[]]
+                    step.vol.invar_strain = [[],[]]
                 else:
                     print('Error in zsoil_results.compute_invariants(): res_type %s not valid'%(res_type))
                 sxx = tensor[0]
@@ -2785,11 +2787,11 @@ class zsoil_results:
                     p = I1/3.0
                     q = math.sqrt(3*J2)
                     if res_type=='stress':
-                        step.vol.invars[0].append(I1)
-                        step.vol.invars[1].append(J2)
+                        step.vol.invar_stress[0].append(I1)
+                        step.vol.invar_stress[1].append(J2)
                     elif res_type=='strain':
-                        step.vol.invare[0].append(I1)
-                        step.vol.invare[1].append(J2)
+                        step.vol.invar_strain[0].append(I1)
+                        step.vol.invar_strain[1].append(J2)
 
     def compute_area(self,inel):
         if self.jobtype=='3D':
