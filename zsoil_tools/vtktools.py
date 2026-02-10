@@ -209,8 +209,8 @@ def write_unstructured_grid(filename,mesh,cdata,nEle,EFs,time,verbose,
     if not verbose:
         print('%i elements written to %s'%(eleList.GetNumberOfIds(),filename))
 
-def get_tstr(t,sf=0,t0=False):
-        if t0:
+def get_tstr(t,sf=0,t0=-1):
+        if t0>-1:
             intpart = int(float('%1.2f'%(t)))
             tstr = str(intpart).rjust(3,'0')+'_'+('%1.0f'%(100*(t-intpart))).rjust(2,'0')
             if sf>0:

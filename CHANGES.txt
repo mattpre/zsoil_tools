@@ -211,3 +211,10 @@ div
 v1.3.23
 zsoil_results:
 - reading of ns-contacts
+- stress invariants
+- reading of contact info
+
+v1.3.24
+zsoil_results:
+- reading of local and nonlocal piles
+- get_tstr for refstep=0

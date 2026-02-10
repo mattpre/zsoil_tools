@@ -713,6 +713,22 @@ class zsoil_results:
                                 kl += 1
                                 for v in line.split():
                                     vals.append(int(v))
+                            if 'P' in label and 'N' in label and not '_' in label:
+                                kp = int(label.split()[0][1:])-1
+                                if kp>=len(self.piles):
+                                    for kk in range(kp-len(self.piles)+1):
+                                        aPile = pile()
+                                        self.piles.append(aPile)
+                                else:
+                                    aPile = self.piles[kp]
+                                kb = int(label.split()[1][1:])
+                                eles = vals
+                                if len(self.piles[kp].volumics)==0:
+                                    self.piles[kp].volumics.append([eles[0]])
+                                else:
+                                    if not eles[0]==self.piles[kp].volumics[-1][-1]:
+                                        self.piles[kp].volumics[-1].append(eles[0])
+                                    self.piles[kp].volumics.append([eles[-1]])
                     elif typ_list.upper()=='A':
                         if typ_data.upper()=='R':
                             for kkl in range(size1):
@@ -740,21 +756,6 @@ class zsoil_results:
 ##                            v = line.split()
 ##                            vals.append((int(v[0]),int(v[1]),int(v[2])))
                     self.lists.append((vals,label))
-                    if 'P' in label and 'N' in label and not '_' in label:
-                        kp = int(label.split()[0][1:])-1
-                        if len(self.piles)==kp:
-                            aPile = pile()
-                            self.piles.append(aPile)
-                        else:
-                            aPile = self.piles[kp]
-                        kb = int(label.split()[1][1:])
-                        eles = vals
-                        if len(self.piles[kp].volumics)==0:
-                            self.piles[kp].volumics.append([eles[0]])
-                        else:
-                            if not eles[0]==self.piles[kp].volumics[-1][-1]:
-                                self.piles[kp].volumics[-1].append(eles[0])
-                            self.piles[kp].volumics.append([eles[-1]])
             elif 'LOAD ' in line:
                 nLoads = int(line.split()[1])
                 self.nLoads = nLoads
@@ -2882,8 +2883,8 @@ class zsoil_results:
 
         return v
 
-    def get_tstr(self,t,t0=False):
-            if t0:
+    def get_tstr(self,t,t0=-1):
+            if t0>-1:
                 intpart = int(float('%1.2f'%(t)))
                 tstr = str(intpart).rjust(3,'0')+'_'+('%1.0f'%(100*(t-intpart))).rjust(2,'0')
                 intpart = int(float('%1.2f'%(t0)))
