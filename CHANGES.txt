@@ -218,3 +218,7 @@ v1.3.24
 zsoil_results:
 - reading of local and nonlocal piles
 - get_tstr for refstep=0
+
+v1.3.25
+postpro_lib:
+- rescale discrete colormaps to number of colors

@@ -3,7 +3,7 @@
 ##         Library for plotting zsoil results          ##
 ##              developed by M. Preisig                ##
 ##                 mpreisig@geomod.ch                  ##
-##                    2015 - 2018                      ##
+##                    2015 - 2026                      ##
 ##                                                     ##
 #########################################################
 
@@ -1082,6 +1082,15 @@ def GetDiscreteColormap(minmax,colormap='ZSoil_maps',ncol=20):
                           [193,80,4],
                           [167,1,34]])
         colmap = np.array([[v[0]/255,v[1]/255,v[2]/255] for v in zsoil])
+
+        new_positions = np.linspace(0, 1, ncol)
+        interp_positions = np.linspace(0, 1, len(zsoil))
+
+        new_colors = np.zeros((ncol, 3))
+        for i in range(3):  # RGBA channels
+            new_colors[:, i] = np.interp(new_positions, interp_positions, colmap[:, i])
+        colmap = new_colors
+
     elif colormap=='mat':
         c = ['#ffdcd2',
              '#ffa4a4',
