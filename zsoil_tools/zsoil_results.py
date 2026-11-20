@@ -482,6 +482,8 @@ class zsoil_results:
                 self.cnt.type.append(0)
                 if self.nBeams:
                     self.cnt.parent.append(self.num_beams[-1])
+                elif self.nTrusses:
+                    self.cnt.parent.append(self.num_trusses[-1])
                 else:
                     self.cnt.parent.append(-1)
             elif ele_type=='CB_L2':
@@ -494,7 +496,12 @@ class zsoil_results:
                 self.cnt.inel.append(inel)
                 self.cnt.ps.append(int(v[2]))
                 self.cnt.type.append(2)
-                self.cnt.parent.append(self.num_beams[-1])
+                if self.nBeams:
+                    self.cnt.parent.append(self.num_beams[-1])
+                elif self.nTrusses:
+                    self.cnt.parent.append(self.num_trusses[-1])
+                else:
+                    self.cnt.parent.append(-1)
             elif ele_type=='NSC2D':
                 v = line.split()
                 inel = [int(v[3])]
@@ -679,7 +686,6 @@ class zsoil_results:
                                 if kn in nodes:
                                     anAnchor.free_truss = self.num_trusses[ke]
                                     break
-                    print('here')
                     self.anchors.append(anAnchor)
                     
             elif 'UNITS' in line:
